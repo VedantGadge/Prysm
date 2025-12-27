@@ -72,7 +72,18 @@ export const sendMessage = createAsyncThunk(
   async ({ message, stockSymbol }, { dispatch, getState, rejectWithValue }) => {
     const userMessageId = generateId();
     const aiMessageId = generateId();
-    const sessionId = getState().chat.currentSessionId;
+    let sessionId = getState().chat.currentSessionId;
+
+    // AUTO-CREATE SESSION IF NONE EXISTS
+    if (!sessionId) {
+      try {
+        const newSession = await chatAPI.createSession();
+        sessionId = newSession.id || newSession._id;
+        dispatch(chatSlice.actions.setCurrentSessionId(sessionId));
+      } catch (e) {
+        console.error("Failed to create session:", e);
+      }
+    }
 
     // Add user message immediately
     dispatch(addUserMessage({ id: userMessageId, content: message }));
@@ -168,6 +179,9 @@ const chatSlice = createSlice({
       state.isLoading = false;
       state.isStreaming = false;
       state.currentStreamingId = null;
+    },
+    setCurrentSessionId: (state, action) => {
+      state.currentSessionId = action.payload;
     },
   },
   extraReducers: (builder) => {
