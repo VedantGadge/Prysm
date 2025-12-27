@@ -1,0 +1,23 @@
+--- STARTING TEST ---
+C:\Users\Welcome\AppData\Local\Programs\Python\Python311\Lib\site-packages\pandas\core\dtypes\cast.py:1056: RuntimeWarning: invalid value encountered in cast
+  if (arr.astype(int) == arr).all():
+C:\Users\Welcome\AppData\Local\Programs\Python\Python311\Lib\site-packages\pandas\core\dtypes\cast.py:1080: RuntimeWarning: invalid value encountered in cast
+  if (arr.astype(int) == arr).all():
+[DEBUG] Raw Function Call: generate_chart, ID: None, Args: {'ticker': 'RELIANCE', 'metric': 'price', 'chart_t...
+[TOOL] Executing generate_chart with args: {'ticker': 'RELIANCE', 'metric': 'price', 'chart_type': 'line', 'title': 'RELIANCE Price Trend'}
+C:\Users\Welcome\AppData\Local\Programs\Python\Python311\Lib\site-packages\pandas\core\dtypes\cast.py:1056: RuntimeWarning: invalid value encountered in cast
+  if (arr.astype(int) == arr).all():
+C:\Users\Welcome\AppData\Local\Programs\Python\Python311\Lib\site-packages\pandas\core\dtypes\cast.py:1080: RuntimeWarning: invalid value encountered in cast
+  if (arr.astype(int) == arr).all():
+RAW CHUNK: data: {"content": "[CHART:{\"type\": \"line\", \"title\": \"RELIANCE Price Trend\", \"data\": {\"labels\": [\"Jan '25\", \"Feb '25\", \"Mar '25\", \"Apr '25\", \"May '25\", \"Jun '25\", \"Jul '25\", \"Aug '25\", \"Sep '25\", \"Oct '25\", \"Nov '25\", \"Dec '25\"], \"datasets\": [{\"label\": \"RELIANCE Price (\\u20b9)\", \"data\": [1260.07, 1195.33, 1270.03, 1399.41, 1415.25, 1494.63, 1384.67, 1357.2, 1364.0, 1486.4, 1567.5, 1559.2]}]}}]"}
+DECODED CONTENT: [CHART:{"type": "line", "title": "RELIANCE Price Trend", "data": {"labels": ["Jan '25", "Feb '25", "Mar '25", "Apr '25", "May '25", "Jun '25", "Jul '25", "Aug '25", "Sep '25", "Oct '25", "Nov '25", "Dec '25"], "datasets": [{"label": "RELIANCE Price (\u20b9)", "data": [1260.07, 1195.33, 1270.03, 1399.41, 1415.25, 1494.63, 1384.67, 1357.2, 1364.0, 1486.4, 1567.5, 1559.2]}]}}]
+[DEBUG] Sending 1 tool responses to model.
+RAW CHUNK: data: {"content": "The"}
+DECODED CONTENT: The
+RAW CHUNK: data: {"content": " chart above illustrates the historical price trend for Reliance Industries Limited (RELIANCE)."}
+DECODED CONTENT:  chart above illustrates the historical price trend for Reliance Industries Limited (RELIANCE).
+RAW CHUNK: data: {"content": " As of the latest data, RELIANCE is trading at 1559.2. A detailed analysis of the chart would reveal the price movements, identifying periods of upward momentum, consolidation, or downtrends, which are crucial for understanding"}
+DECODED CONTENT:  As of the latest data, RELIANCE is trading at 1559.2. A detailed analysis of the chart would reveal the price movements, identifying periods of upward momentum, consolidation, or downtrends, which are crucial for understanding
+RAW CHUNK: data: {"content": " investor sentiment and potential future performance."}
+DECODED CONTENT:  investor sentiment and potential future performance.
+--- END TEST ---
