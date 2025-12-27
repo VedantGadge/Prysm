@@ -1,25 +1,62 @@
 # Prysm - Stock Research Copilot
 
-A chat-based investment research UI where users can ask questions about stocks and receive AI-powered analysis with interactive charts.
+A chat-based investment research UI where users can ask questions about stocks and receive AI-powered analysis with interactive charts. Now powered by **LangGraph**, **MongoDB**, and **Real-time Data**.
 
 ![Prysm Screenshot](./screenshot.png)
 
+## System Architecture
+
+```mermaid
+graph TD
+    User[User] -->|Chat Message| Frontend[Frontend (React)]
+    Frontend -->|POST /chat (Stream)| Agent[AI Agent (FastAPI)]
+
+    subgraph "AI Agent (LangGraph)"
+        Agent -->|Load/Save History| Mongo[(MongoDB)]
+        Agent -->|Extract Intent| Gemini[Gemini 1.5/2.5]
+
+        Agent -->|Execute Graph| Graph[LangGraph Workflow]
+        Graph -->|Consult| Gemini
+
+        Graph -->|Call Tools| Tools[Tools Layer]
+        Tools -->|Fetch Prices| YFin[Yahoo Finance]
+        Tools -->|Fetch News| RSS[Google/Yahoo News RSS]
+    end
+
+    Agent -->|Stream Chunks + UI Tokens| Frontend
+    Frontend -->|Render Markdown + Charts| User
+```
+
+## LangGraph Workflow
+
+The AI Agent uses a cyclic graph to manage state and tool execution:
+
+```mermaid
+graph TD
+    START --> DefineState
+    DefineState --> ModelNode
+    ModelNode -->|tool_calls| ToolNode
+    ToolNode --> ModelNode
+    ModelNode -->|text| END
+```
+
 ## Features
 
-- 💬 **Chat Interface** - Clean, modern chat UI with user and AI messages
-- 📊 **Interactive Charts** - Line, bar, pie, and horizontal bar charts embedded in responses
-- 🤖 **AI-Powered Analysis** - Gemini LLM integration for intelligent stock analysis
-- 📈 **Financial Data** - Mock data for Indian stocks (RELIANCE, TCS, INFY, HDFCBANK, etc.)
-- 🔄 **Streaming Responses** - Real-time streaming of AI responses
-- 🎨 **Dark Theme** - Professional dark mode design
+- 💬 **Smart Chat Interface** - Context-aware chat that remembers stock symbols ("how is _its_ risk?").
+- 📊 **Real-time Interactive Charts** - Line, bar, radar, and risk gauges using live market data.
+- 🧠 **LangGraph Agent** - Structured reasoning loop with intent extraction and "Sticky Context".
+- 💾 **Session Persistence** - Chat history saved in MongoDB.
+- 📈 **Live Financial Data** - Real-time price history and financials via Yahoo Finance.
+- 🔄 **Streaming Responses** - Low-latency Token-by-token streaming.
+- 🎨 **Dark Theme** - Professional Bloomberg-style aesthetic.
 
 ## Tech Stack
 
-- **Frontend**: React.js + Vite + Tailwind CSS
-- **State Management**: Redux Toolkit
-- **Backend API**: Node.js + Express
-- **AI Agent**: FastAPI + Google Gemini
-- **Charts**: Chart.js + react-chartjs-2
+- **Frontend**: React.js, Redux Toolkit, Tailwind CSS, Recharts/Chart.js
+- **Backend (Agent)**: Python 3.11, FastAPI, LangGraph, LangChain
+- **Database**: MongoDB (Motor Async Driver)
+- **AI Model**: Google Gemini 2.5 Flash / 1.5 Pro
+- **Data Sources**: `yfinance`, `feedparser` (News)
 
 ## Project Structure
 
@@ -27,226 +64,118 @@ A chat-based investment research UI where users can ask questions about stocks a
 prysm/
 ├── frontend/          # React frontend
 │   ├── src/
-│   │   ├── components/   # UI components
-│   │   ├── store/        # Redux store
-│   │   └── services/     # API services
-│   └── package.json
-├── backend/           # Node.js Express backend
-│   ├── src/
-│   │   ├── routes/       # API routes
-│   │   └── services/     # Business logic
-│   └── package.json
-├── ai-agent/          # FastAPI AI agent
-│   ├── main.py          # FastAPI app
-│   ├── stock_data.py    # Mock stock data
+│   │   ├── components/   # Chat, Charts, Widgets
+│   │   ├── store/        # Redux (chatSlice with persistence logic)
+│   │   └── services/     # API integration
+├── ai-agent/          # Python AI Backend
+│   ├── main.py          # FastAPI App & Endpoints
+│   ├── graph.py         # LangGraph Definition (Nodes/Edges)
+│   ├── tools.py         # Data Tools (Charts, Risk, News)
+│   ├── stock_data.py    # Formatting Helpers
 │   └── requirements.txt
-└── package.json       # Root package.json
+└── backend/           # (Legacy/Auth) Node.js Backend
 ```
+
+## Current Data Flow
+
+1. **Session Management**:
+
+   - Frontend checks for `currentSessionId`. If missing, calls `POST /sessions` to create one in MongoDB.
+   - All chat messages include this `session_id`.
+
+2. **Intent Extraction**:
+
+   - `extract_intent` analyzes the user message + conversation history.
+   - **Sticky Context**: If user says "it", "this", or asks a follow-up ("risk?", "chart?"), the agent automatically injects the last mentioned stock symbol (e.g., RELIANCE).
+
+3. **Graph Execution**:
+
+   - **Context**: If a stock is identified, recent price/financial data is injected into the System Prompt.
+   - **Tools**: The agent decides which tools to call (Risk Gauge, Price Chart, Sentiment).
+   - **Streaming**: Tools return `ui_content` (rendered widgets) and `llm_data` (for analysis). These are streamed properly to the frontend.
+
+4. **Visualization**:
+   - Frontend parses `[CHART:...]`, `[RISK:...]` tokens in the stream and renders React components.
 
 ## Quick Start
 
-### Prerequisites
+### 1. Prerequisites
 
+- MongoDB Running (Local or Atlas)
+- Google Gemini API Key
+- Python 3.11+
 - Node.js 18+
-- Python 3.9+
-- npm or yarn
 
-### Installation
+### 2. Setup
 
-1. **Clone and install dependencies:**
+**AI Agent (Python)**
 
 ```bash
-cd prysm
-
-# Install all Node.js dependencies
-npm install
-cd frontend && npm install && cd ..
-cd backend && npm install && cd ..
-
-# Install Python dependencies
 cd ai-agent
 python -m venv venv
-# Windows:
 venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
 pip install -r requirements.txt
-cd ..
-```
-
-2. **Configure environment variables:**
-
-```bash
-# Backend
-cp backend/.env.example backend/.env
-
-# AI Agent
-cp ai-agent/.env.example ai-agent/.env
-```
-
-3. **Add your Gemini API key:**
-
-Get a free API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-
-Edit `ai-agent/.env`:
-```
-GEMINI_API_KEY=your_actual_api_key_here
-```
-
-### Running the Application
-
-**Option 1: Run each service separately (recommended for development)**
-
-Terminal 1 - Frontend:
-```bash
-cd frontend
-npm run dev
-```
-
-Terminal 2 - Backend:
-```bash
-cd backend
-npm run dev
-```
-
-Terminal 3 - AI Agent:
-```bash
-cd ai-agent
-# Activate virtual environment first
+cp .env.example .env  # Add GEMINI_API_KEY and MONGO_URI
 python -m uvicorn main:app --reload --port 8001
 ```
 
-**Option 2: Run all services together**
-
-```bash
-npm run dev
-```
-
-### Access the Application
-
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- AI Agent: http://localhost:8001
-
-## Usage
-
-### Example Queries
-
-1. **Price Trends**
-   - "Show INFY price trend for last 1 year"
-   - "What's the price history of RELIANCE?"
-
-2. **Financial Analysis**
-   - "Explain TCS revenue breakup"
-   - "Show me quarterly financials for HDFC Bank"
-
-3. **Comparisons**
-   - "Compare P/E ratios of IT stocks"
-   - "Compare RELIANCE and TCS"
-
-4. **Financial Health**
-   - "How strong is HDFC Bank financially?"
-   - "Analyze Infosys financial ratios"
-
-5. **Shareholding**
-   - "What's the shareholding pattern of RELIANCE?"
-   - "Show promoter holding in TCS"
-
-### Available Stocks
-
-- RELIANCE (Reliance Industries)
-- TCS (Tata Consultancy Services)
-- INFY (Infosys)
-- HDFCBANK (HDFC Bank)
-- ICICIBANK (ICICI Bank)
-- WIPRO (Wipro)
-- BHARTIARTL (Bharti Airtel)
-- ITC
-- SBIN (State Bank of India)
-- KOTAKBANK (Kotak Mahindra Bank)
-
-## API Endpoints
-
-### Backend (Express)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/chat` | Send message to AI (streaming) |
-| GET | `/api/stock/:symbol` | Get stock data |
-| GET | `/api/stock/search?q=query` | Search stocks |
-| GET | `/api/health` | Health check |
-
-### AI Agent (FastAPI)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/chat` | Chat with AI (streaming) |
-| GET | `/health` | Health check |
-
-## Chart Format
-
-The AI includes charts in responses using this format:
-
-```json
-[CHART:{"type":"bar","title":"Revenue Comparison","data":{"labels":["Q1","Q2","Q3","Q4"],"datasets":[{"label":"Revenue","data":[100,120,130,150]}]}}]
-```
-
-Supported chart types:
-- `line` - Price trends, time series
-- `bar` - Category comparisons
-- `horizontal_bar` - P/E ratios, rankings
-- `pie` - Shareholding patterns
-- `doughnut` - Composition breakdowns
-
-## Development
-
-### Frontend Development
+**Frontend (Node)**
 
 ```bash
 cd frontend
-npm run dev     # Start dev server
-npm run build   # Production build
-npm run lint    # Run ESLint
+npm install
+npm run dev
 ```
 
-### Backend Development
+### 3. Environment Variables (.env)
 
-```bash
-cd backend
-npm run dev     # Start with nodemon
-npm start       # Production start
+**ai-agent/.env**
+
+```ini
+GEMINI_API_KEY=your_key
+MONGO_URI=mongodb://localhost:27017
 ```
 
-### AI Agent Development
+## AI Agent Pipeline
 
-```bash
-cd ai-agent
-python -m uvicorn main:app --reload --port 8001
-```
+The core intelligence of Prysm follows a structured **LangGraph** pipeline:
 
-## Configuration
+1.  **State Initialization**:
 
-### Environment Variables
+    - The agent receives the message and `session_id`.
+    - Loads conversation history from MongoDB.
+    - Resolves "Sticky Context" (e.g., "Analyze Reliance" -> "How is _its_ risk?" -> Agent knows "its" = RELIANCE).
 
-**Backend (.env)**
-```
-PORT=8000
-AI_AGENT_URL=http://localhost:8001
-```
+2.  **Intent Classification**:
 
-**AI Agent (.env)**
-```
-GEMINI_API_KEY=your_api_key_here
-HOST=0.0.0.0
-PORT=8001
-```
+    - The `ExtractIntent` node analyzes the query to determine:
+      - **Target Stock**: (e.g., RELIANCE, TCS)
+      - **User Intent**: (Risk, Chart, News, Analysis)
 
-## Notes
+3.  **Context Injection**:
 
-- The app works without a Gemini API key using mock responses
-- Stock data is mocked for demonstration purposes
-- In production, integrate with real financial data APIs (Yahoo Finance, etc.)
+    - If a valid stock is found, the agent fetches real-time quote/financials from `yfinance`.
+    - This data is injected into the System Prompt so the LLM is "grounded" in reality before answering.
+
+4.  **Tool Execution (Auto-Inject)**:
+
+    - Based on the intent, the pipeline automatically triggers relevant tools (visual widgets).
+    - Example: Requesting "Is it risky?" triggers `generate_risk_gauge`.
+
+5.  **Streaming Response**:
+    - The agent streams the response token-by-token to the frontend.
+    - Tool outputs (`[CHART:...]`) are streamed as special tokens which the frontend intercepts and renders as interactive components.
+
+## Key Tools
+
+The agent produces "Visual Tokens" which render as high-fidelity UI components:
+
+| Tool Name                         | Trigger Keywords                   | Description                                                                                           |
+| --------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **`generate_chart`**              | "chart", "price", "trend", "graph" | Renders interactive Line/Bar/Area charts using `yfinance` history. Supports Price, P/E, Margins, etc. |
+| **`generate_risk_gauge`**         | "risk", "safe", "volatility"       | Creating a speedometer-style Gauge visualizing Beta, volatility, and debt levels.                     |
+| **`generate_sentiment_analysis`** | "news", "sentiment", "headlines"   | Aggregates news from Yahoo Finance/Google News and computes a Bullish/Bearish score (0-100).          |
+| **`generate_future_timeline`**    | "future", "events", "calendar"     | Displays a timeline of upcoming events (Earnings, Dividends) fetched from the stock's calendar.       |
 
 ## License
 
