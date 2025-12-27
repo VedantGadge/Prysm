@@ -1,0 +1,149 @@
+{
+  "36f33eb6-9e85-4343-b217-9b79274c3a10": {
+    "id": "36f33eb6-9e85-4343-b217-9b79274c3a10",
+    "title": "TCS Analysis Insights",
+    "timestamp": "2025-12-28T00:49:11.184092",
+    "messages": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "TCS analysis"
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "text": "<thinking>The user is requesting a full analysis of TCS. I need to go through each section of the provided data, explain its significance, and generate a relevant, unique chart for each section as per the instructions. I must also include a risk gauge for the risk profile section.\n\nHere's a breakdown of the sections and the corresponding charts/tools:\n1.  **Introduction**: State the company and its current price.\n2.  **Valuation Metrics**: Analyze P/E, P/B, etc. Generate `generate_chart(ticker='TCS', chart_type='bar', metric='valuation', title='TCS Valuation Metrics')`.\n3.  **Profitability & Efficiency**: Analyze margins, ROE, ROA. Generate `generate_chart(ticker='TCS', chart_type='line', metric='profitability', title='TCS Profitability Trends')`.\n4.  **Growth & Operations**: Analyze revenue, earnings growth, EBITDA. Generate `generate_chart(ticker='TCS', chart_type='bar', metric='revenue', title='TCS Revenue Growth')`.\n5.  **Balance Sheet Health**: Analyze cash, debt, D/E, liquidity. Generate `generate_chart(ticker='TCS', chart_type='bar', metric='debt_vs_cash', title='TCS Debt vs. Cash')`.\n6.  **Cash Flow**: Analyze Operating and Free Cash Flow. Generate `generate_chart(ticker='TCS', chart_type='bar', metric='cashflow', title='TCS Cash Flow Analysis')`.\n7.  **Risk Profile**: Analyze Beta, 52-Wk Change. Generate `generate_risk_gauge(ticker='TCS')`.\n8.  **Shareholding**: Analyze promoter, public, FII, DII holdings.\n9.  **Analyst Recommendations**: Summarize target price and recommendation.\n10. **Overall Investment Thesis**: Conclude with a professional summary.\n\nI will ensure that each chart is distinct in `chart_type` and `metric` as specified in the guidelines.Here's a comprehensive investment thesis on Tata Consultancy Services (TCS), leveraging the provided real-time data:\n\n**Tata Consultancy Services (TCS): A Deep Dive into India's IT Bellwether**\n\nTata Consultancy Services, currently trading at \u20b93280.0, stands as a titan in the global technology sector, delivering a broad spectrum of IT and IT-enabled services. A detailed examination of its financials, operational efficiency, and market positioning reveals a company with robust fundamentals, albeit with some areas warranting investor attention.\n\n### 1. Valuation Metrics: Premium for Stability and Scale\n\nTCS commands a significant market capitalization of \u20b91186732.70 Cr, reflecting its dominant position. The company trades at a Trailing P/E of 23.98, which is expected to moderate to a Forward P/E of 21.48, indicating anticipated earnings growth. Its Price/Book ratio of 11.15 and Price/Sales of 4.61 suggest a premium valuation, often characteristic of high-quality, stable businesses in the IT services space. The PEG Ratio is currently N/A, so a growth-based valuation cannot be directly assessed using this metric from the provided data.\n\n[CHART:{\"type\": \"bar\", \"title\": \"TCS Valuation Metrics\", \"data\": {\"labels\": [\"P/E\", \"Forward P/E\", \"P/B\", \"P/S\", \"PEG\"], \"datasets\": [{\"label\": \"TCS Valuation Multiples\", \"data\": [23.980114, 21.480896, 11.151949, 4.6053085, 0]}]}}]### 2. Profitability & Efficiency: Strong Margins and Capital Returns\n\nTCS consistently demonstrates strong profitability, a hallmark of its operational efficiency and pricing power. A Gross Margin of 39.07% flows into a healthy Operating Margin of 25.18%, ultimately yielding a Net Profit Margin of 19.19%. These margins underscore the company's ability to manage costs effectively and convert revenue into substantial bottom-line profits. Furthermore, an exceptional Return on Equity (ROE) of 47.36% and Return on Assets (ROA) of 23.54% highlight TCS's adeptness at generating significant returns for its shareholders and efficient asset utilization.\n\n[CHART:{\"type\": \"line\", \"title\": \"TCS Profitability Trends\", \"data\": {\"labels\": [\"Jan '25\", \"Feb '25\", \"Mar '25\", \"Apr '25\", \"May '25\", \"Jun '25\", \"Jul '25\", \"Aug '25\", \"Sep '25\", \"Oct '25\", \"Nov '25\", \"Dec '25\"], \"datasets\": [{\"label\": \"TCS Price (\\u20b9)\", \"data\": [4047.29, 3428.1, 3549.05, 3399.02, 3408.56, 3437.47, 3025.52, 3073.24, 2877.67, 3058.0, 3137.5, 3280.0]}]}}]### 3. Growth & Operations: Steady, Albeit Moderate, Expansion\n\nTCS reported a Trailing Twelve Months (TTM) Revenue of \u20b9257688.00 Cr. While the Revenue Growth stands at a modest 2.4% and Earnings Growth at 1.4%, this growth comes on a very large base, indicating steady, consistent expansion rather than rapid acceleration. The substantial EBITDA of \u20b966924.00 Cr further solidifies its robust operational performance and cash-generating capabilities.\n\n### 4. Balance Sheet Health: A Fortress of Liquidity\n\nThe balance sheet of TCS is exceptionally strong, characterized by substantial cash reserves and minimal debt. With Total Cash at \u20b948714.00 Cr significantly outweighing Total Debt of \u20b910932.00 Cr, the company boasts a very low Debt/Equity ratio of 10.17, indicating negligible solvency risk. Its strong liquidity is further evidenced by a Current Ratio of 2.43 and a Quick Ratio of 2.21, suggesting ample capacity to meet short-term obligations without stress.\n\n[CHART:{\"type\": \"bar\", \"title\": \"TCS Debt vs. Cash\", \"data\": {\"labels\": [\"Total Cash\", \"Total Debt\"], \"datasets\": [{\"label\": \"TCS Balance Sheet (\\u20b9)\", \"data\": [487139999744, 109320003584]}]}}]### 5. Cash Flow: Robust Free Cash Generation\n\nTCS demonstrates excellent cash flow generation. The Operating Cash Flow stands at a healthy \u20b951853.00 Cr, which efficiently translates into Free Cash Flow of \u20b939265.25 Cr. This strong free cash flow provides the company with significant financial flexibility for investments, dividends, share buybacks, and strategic acquisitions, reinforcing its financial independence and capacity for shareholder returns.\n\n[CHART:{\"type\": \"bar\", \"title\": \"TCS Cash Flow Analysis\", \"data\": {\"labels\": [\"Operating CF\", \"Free CF\"], \"datasets\": [{\"label\": \"TCS Cash Flow (\\u20b9)\", \"data\": [518530007040, 392652488704]}]}}]"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "TCS analysis"
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "text": "Tata Consultancy Services (TCS), currently trading at \u20b93280.0, stands as a formidable player in the global technology sector, offering a comprehensive suite of IT and IT-enabled services. A detailed examination of its financials, operational efficiency, and market positioning reveals a company with robust fundamentals, yet one that demands a nuanced understanding of its growth trajectory and valuation.\n\n### Valuation: A Premium for Stability\n\nTCS commands a substantial Market Cap of \u20b91186732.70 Cr, reflecting its industry leadership. The stock trades at a Trailing P/E of 23.98, which is anticipated to moderate to a Forward P/E of 21.48, signaling expected earnings expansion. With a Price/Book of 11.15 and Price/Sales of 4.61, TCS is valued at a premium, a common characteristic for high-quality, stable IT services giants. The PEG Ratio is currently N/A, hence a growth-based valuation cannot be directly assessed.\n\n[CHART:{\"type\": \"bar\", \"title\": \"TCS Valuation Metrics\", \"data\": {\"labels\": [\"P/E\", \"Forward P/E\", \"P/B\", \"P/S\", \"PEG\"], \"datasets\": [{\"label\": \"TCS Valuation Multiples\", \"data\": [23.980114, 21.480896, 11.151949, 4.6053085, 0]}]}}]### Profitability & Efficiency: Consistently Strong Margins\n\nTCS consistently demonstrates impressive profitability, underscoring its operational prowess and cost management capabilities. A Gross Margin of 39.07% translates into a healthy Operating Margin of 25.18% and a robust Net Profit Margin of 19.19%. These figures highlight the company's ability to convert revenue into significant bottom-line profits. Furthermore, an exceptional Return on Equity (ROE) of 47.36% and Return on Assets (ROA) of 23.54% showcase TCS's efficiency in generating returns for shareholders and effectively utilizing its asset base.\n\n[CHART:{\"type\": \"line\", \"title\": \"TCS Profitability Trends\", \"data\": {\"labels\": [\"Jan '25\", \"Feb '25\", \"Mar '25\", \"Apr '25\", \"May '25\", \"Jun '25\", \"Jul '25\", \"Aug '25\", \"Sep '25\", \"Oct '25\", \"Nov '25\", \"Dec '25\"], \"datasets\": [{\"label\": \"TCS Price (\\u20b9)\", \"data\": [4047.29, 3428.1, 3549.05, 3399.02, 3408.56, 3437.47, 3025.52, 3073.24, 2877.67, 3058.0, 3137.5, 3280.0]}]}}]### Growth & Operations: Steady Expansion on a Large Base\n\nTCS reported a Trailing Twelve Months (TTM) Revenue of \u20b9257688.00 Cr. While Revenue Growth stands at a moderate 2.4% and Earnings Growth at 1.4%, it is crucial to consider this growth against the company's colossal operational scale. The substantial EBITDA of \u20b966924.00 Cr further solidifies its robust operational performance and strong cash-generating capabilities, indicating consistent, albeit not rapid, expansion.\n\n### Balance Sheet Health: A Fortress of Financial Strength\n\nThe balance sheet of TCS is a testament to its financial prudence, marked by substantial cash reserves and minimal debt. With Total Cash at \u20b948714.00 Cr significantly surpassing Total Debt of \u20b910932.00 Cr, the company maintains a very low Debt/Equity ratio of 10.17, indicating negligible solvency risk. Its strong liquidity is further evidenced by a Current Ratio of 2.43 and a Quick Ratio of 2.21, suggesting ample capacity to meet short-term obligations without stress.\n\n[CHART:{\"type\": \"bar\", \"title\": \"TCS Debt vs. Cash\", \"data\": {\"labels\": [\"Total Cash\", \"Total Debt\"], \"datasets\": [{\"label\": \"TCS Balance Sheet (\\u20b9)\", \"data\": [487139999744, 109320003584]}]}}]### Cash Flow: Abundant Free Cash Generation\n\nTCS demonstrates excellent cash flow generation, a critical indicator of financial health. The Operating Cash Flow stands at a robust \u20b951853.00 Cr, which efficiently translates into a significant Free Cash Flow of \u20b939265.25 Cr. This strong free cash flow provides the company with substantial financial flexibility for strategic investments, consistent dividend payouts, potential share buybacks, and inorganic growth opportunities, reinforcing its financial independence and capacity for sustained shareholder returns.\n\n[CHART:{\"type\": \"bar\", \"title\": \"TCS Cash Flow Analysis\", \"data\": {\"labels\": [\"Operating CF\", \"Free CF\"], \"datasets\": [{\"label\": \"TCS Cash Flow (\\u20b9)\", \"data\": [518530007040, 392652488704]}]}}]"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "what about its risks?"
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "text": "[RISK:{\"ticker\": \"TCS\", \"score\": 50, \"level\": \"Moderate\", \"factors\": [\"High Debt/Equity (10.173)\"]}]\n\n\n\n<thinking>The user is asking specifically about the risks of TCS. According to the guidelines, I must use the `generate_risk_gauge` tool when the user mentions \"risk\", \"risky\", \"volatility\", or \"how safe\". I will also analyze the provided risk profile data points like Beta, 52-Week Change, and Short Ratio.</thinking>\n[RISK:{\"ticker\": \"TCS\", \"score\": 50, \"level\": \"Moderate\", \"factors\": [\"High Debt/Equity (10.173)\"]}]TCS's risk profile, while generally considered stable given its market position, presents specific factors that investors should consider.\n\nThe **Beta (Volatility) of 0.33** indicates that TCS is significantly less volatile than the broader market. A Beta less than 1 suggests that the stock's price movements are not as pronounced as the overall market. This makes TCS an attractive option for investors seeking stability and lower price swings, particularly during turbulent market conditions.\n\nThe **52-Week Change of -21.13%**, however, highlights a period of underperformance over the past year. This negative change suggests that despite its low beta, the stock has faced headwinds, leading to a notable decline from its 52-week high. Investors should investigate the underlying reasons for this decline, which could range from sector-specific challenges to company-specific issues, or simply a broader market correction impacting even stable stocks.\n\nThe **Short Ratio is N/A**, meaning that data regarding bearish sentiment through short interest is not available in the provided context. While a high short ratio can signal significant negative sentiment from speculative traders, its absence here means we cannot draw conclusions from this particular metric.\n\nIn summary, while TCS exhibits low volatility, its recent 52-week performance indicates a period of price depreciation that warrants careful consideration despite its strong fundamentals and market leadership."
+          }
+        ]
+      }
+    ]
+  },
+  "078ef5a1-450b-4932-9537-d3475aa168a1": {
+    "id": "078ef5a1-450b-4932-9537-d3475aa168a1",
+    "title": "Reliance & RSI Analysis",
+    "timestamp": "2025-12-28T00:50:33.160935",
+    "messages": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "Reliance Risk analysis and RSI analaysis"
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "text": "<thinking>The user is asking for a \"Risk analysis\" for Reliance. This directly triggers the `generate_risk_gauge` tool as per the instructions. The user also asked for \"RSI analysis\". I need to check if RSI can be plotted using the `generate_chart` tool. Looking at the `generate_chart` tool's `metric` parameter, I see options like \"valuation\", \"profitability\", \"revenue\", \"debt_vs_cash\", \"cashflow\", and \"price\". RSI is not an available metric for the `generate_chart` tool. Therefore, I will perform the risk analysis using the `generate_risk_gauge` tool and provide a textual explanation of the risk profile, and state that RSI analysis is not supported by the available tools.</thinking>[RISK:{\"ticker\": \"RELIANCE\", \"score\": 50, \"level\": \"Moderate\", \"factors\": [\"High Debt/Equity (35.651)\"]}]Reliance Industries Limited (RELIANCE) presents a nuanced risk profile that investors should consider. With a Beta of 0.31, Reliance exhibits significantly lower volatility compared to the broader market (where 1.0 signifies market-matching volatility). This indicates that the stock's price movements are less exaggerated than the overall market, potentially offering a degree of stability during market fluctuations.\n\nFrom a solvency perspective, the Debt/Equity ratio stands at 35.65. While debt is a factor, further analysis would be required to benchmark this against industry peers and the company's cash-generating capabilities to fully assess the solvency risk. The company's total debt is \u20b9374593.00 Cr against a total cash of \u20b9223871.00 Cr, suggesting a net debt position.\n\nLiquidity indicators show a Current Ratio of 1.1 and a Quick Ratio of 0.58. A current ratio above 1 is generally considered healthy, indicating the company can cover its short-term obligations. However, a quick ratio below 1 suggests a reliance on inventory to meet short-term liabilities, which could be a point of concern for immediate liquidity.\n\nThe 52-week change of 28.79% highlights the stock's recent performance and investor sentiment over the past year.\n\nRegarding RSI analysis, the current suite of tools does not support the generation of Relative Strength Index (RSI) charts or data."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "ok then show me teh price trends"
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "text": "[CHART:{\"type\": \"line\", \"title\": \"Reliance Price Trends\", \"data\": {\"labels\": [\"Jan '25\", \"Feb '25\", \"Mar '25\", \"Apr '25\", \"May '25\", \"Jun '25\", \"Jul '25\", \"Aug '25\", \"Sep '25\", \"Oct '25\", \"Nov '25\", \"Dec '25\"], \"datasets\": [{\"label\": \"RELIANCE Price (\\u20b9)\", \"data\": [1260.07, 1195.33, 1270.03, 1399.41, 1415.25, 1494.63, 1384.67, 1357.2, 1364.0, 1486.4, 1567.5, 1559.2]}]}}]<thinking>The user asked to see \"price trends\" after the previous interaction where Reliance was discussed. I correctly identified that the user likely wanted to see price trends for Reliance. I used the `generate_chart` tool with `chart_type=\"line\"`, `metric=\"price\"`, and `ticker=\"RELIANCE\"` to fulfill this request. The tool executed successfully and returned \"Chart displayed.\" Now I should inform the user that the chart has been displayed.</thinking>I have displayed the price trends for Reliance."
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "provide insights from it"
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "text": "<thinking>The user has asked for insights from the provided master report on Reliance. I need to synthesize this information into a comprehensive investment thesis, following all the guidelines. This includes analyzing each section of the report (Valuation, Profitability, Growth, Balance Sheet, Cash Flow, Risk, Shareholding, Analyst Recommendations) and generating appropriate, diverse charts for each relevant section. I will ensure to use the `generate_risk_gauge` for the risk section and distinct chart types for other sections as specified in the instructions. I will also make sure to use exact values and explain their significance.\n\n**Plan:**\n1.  **Introduction**: Briefly introduce Reliance and its current market standing.\n2.  **Valuation**: Analyze P/E, P/B, P/S, and mention PEG. Generate a `generate_chart` for `metric=\"valuation\"`.\n3.  **Profitability**: Discuss margins (Gross, Operating, Net), ROE, and ROA. Generate a `generate_chart` for `metric=\"profitability\"`.\n4.  **Growth**: Detail Revenue and Earnings Growth, and EBITDA. Generate a `generate_chart` with `chart_type=\"bar\"` for `metric=\"revenue\"`.\n5.  **Balance Sheet**: Examine Total Cash, Total Debt, Debt/Equity, Current, and Quick Ratios. Generate a `generate_chart` with `chart_type=\"bar\"` for `metric=\"debt_vs_cash\"`.\n6.  **Cash Flow**: Analyze Operating Cash Flow and Free Cash Flow. Generate a `generate_chart` with `chart_type=\"bar\"` for `metric=\"cashflow\"`.\n7.  **Risk Profile**: Discuss Beta, 52-Week Change, and Short Ratio (N/A). Call `generate_risk_gauge`.\n8.  **Shareholding**: Present the breakdown of shareholding. No specific chart type is mandated for this, so I will provide textual analysis only.\n9.  **Analyst Recommendations**: Summarize the target price and recommendation.\n10. **Overall Investment Thesis**: Conclude with a synthesized view based on all analyses.</thinking>[CHART:{\"type\": \"line\", \"title\": \"Reliance Valuation Metrics\", \"data\": {\"labels\": [\"Jan '25\", \"Feb '25\", \"Mar '25\", \"Apr '25\", \"May '25\", \"Jun '25\", \"Jul '25\", \"Aug '25\", \"Sep '25\", \"Oct '25\", \"Nov '25\", \"Dec '25\"], \"datasets\": [{\"label\": \"RELIANCE Price (\\u20b9)\", \"data\": [1260.07, 1195.33, 1270.03, 1399.41, 1415.25, 1494.63, 1384.67, 1357.2, 1364.0, 1486.4, 1567.5, 1559.2]}]}}][CHART:{\"type\": \"line\", \"title\": \"Reliance Profitability Margins\", \"data\": {\"labels\": [\"Jan '25\", \"Feb '25\", \"Mar '25\", \"Apr '25\", \"May '25\", \"Jun '25\", \"Jul '25\", \"Aug '25\", \"Sep '25\", \"Oct '25\", \"Nov '25\", \"Dec '25\"], \"datasets\": [{\"label\": \"RELIANCE Price (\\u20b9)\", \"data\": [1260.07, 1195.33, 1270.03, 1399.41, 1415.25, 1494.63, 1384.67, 1357.2, 1364.0, 1486.4, 1567.5, 1559.2]}]}}][CHART:{\"type\": \"bar\", \"title\": \"Reliance Debt vs. Cash\", \"data\": {\"labels\": [\"Total Cash\", \"Total Debt\"], \"datasets\": [{\"label\": \"RELIANCE Balance Sheet (\\u20b9)\", \"data\": [2238710022144, 3745930018816]}]}}][CHART:{\"type\": \"bar\", \"title\": \"Reliance Cash Flow\", \"data\": {\"labels\": [\"Operating CF\", \"Free CF\"], \"datasets\": [{\"label\": \"RELIANCE Cash Flow (\\u20b9)\", \"data\": [1860030038016, 251736244224]}]}}]"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "provide insights from the data showb"
+          }
+        ]
+      },
+      {
+        "role": "model",
+        "parts": [
+          {
+            "text": "<thinking>The user has asked for insights from the previously shown data. I need to provide a comprehensive investment thesis for Reliance Industries Limited based on the \"MASTER REPORT: RELIANCE\" context. I will go through each section of the report, analyze the data, and generate appropriate, diverse charts as per the guidelines.\n\nHere's the detailed plan:\n1.  **Introduction**: Start with an introduction to Reliance, its current price, and its sector.\n2.  **Valuation Metrics**: Analyze Market Cap, Enterprise Value, Trailing P/E, Forward P/E, PEG Ratio (mention N/A), Price/Book, and Price/Sales. I will generate a `line` chart for `metric=\"valuation\"`.\n3.  **Profitability & Efficiency**: Discuss Gross Margin, Operating Margin, Net Profit Margin, ROE, and ROA. I will generate a `line` chart for `metric=\"profitability\"`.\n4.  **Growth & Operations**: Examine Revenue (TTM), Revenue Growth, Earnings Growth, and EBITDA. I will generate a `bar` chart for `metric=\"revenue\"`.\n5.  **Balance Sheet Health**: Analyze Total Cash, Total Debt, Debt/Equity, Current Ratio, and Quick Ratio. I will generate a `bar` chart for `metric=\"debt_vs_cash\"`.\n6.  **Cash Flow**: Discuss Operating Cash Flow and Free Cash Flow. I will generate a `bar` chart for `metric=\"cashflow\"`.\n7.  **Risk Profile**: Analyze Beta, Short Ratio (mention N/A), and 52-Week Change. I will call `generate_risk_gauge` for this section.\n8.  **Shareholding**: Detail Promoters, Public, FII, and DII percentages. This will be purely textual analysis as no specific chart type is mandated and a pie chart for shareholding is not explicitly listed as a mandatory diverse chart type in the guidelines.\n9.  **Analyst Recommendations**: Summarize the Target Mean Price and Recommendation.\n10. **Overall Investment Thesis**: Conclude with a synthesized view.\n\nI will ensure to use exact formatted values from the context and explain their significance, maintaining a professional and data-backed tone. I will also make sure not to repeat chart types for the same metric and adhere to all tool triggers and chart diversity guidelines.</thinking>[CHART:{\"type\": \"line\", \"title\": \"Reliance Valuation Multiples\", \"data\": {\"labels\": [\"Jan '25\", \"Feb '25\", \"Mar '25\", \"Apr '25\", \"May '25\", \"Jun '25\", \"Jul '25\", \"Aug '25\", \"Sep '25\", \"Oct '25\", \"Nov '25\", \"Dec '25\"], \"datasets\": [{\"label\": \"RELIANCE Price (\\u20b9)\", \"data\": [1260.07, 1195.33, 1270.03, 1399.41, 1415.25, 1494.63, 1384.67, 1357.2, 1364.0, 1486.4, 1567.5, 1559.2]}]}}][CHART:{\"type\": \"line\", \"title\": \"Reliance Profitability Margins\", \"data\": {\"labels\": [\"Jan '25\", \"Feb '25\", \"Mar '25\", \"Apr '25\", \"May '25\", \"Jun '25\", \"Jul '25\", \"Aug '25\", \"Sep '25\", \"Oct '25\", \"Nov '25\", \"Dec '25\"], \"datasets\": [{\"label\": \"RELIANCE Price (\\u20b9)\", \"data\": [1260.07, 1195.33, 1270.03, 1399.41, 1415.25, 1494.63, 1384.67, 1357.2, 1364.0, 1486.4, 1567.5, 1559.2]}]}}][CHART:{\"type\": \"bar\", \"title\": \"Reliance Debt vs. Cash Position\", \"data\": {\"labels\": [\"Total Cash\", \"Total Debt\"], \"datasets\": [{\"label\": \"RELIANCE Balance Sheet (\\u20b9)\", \"data\": [2238710022144, 3745930018816]}]}}][CHART:{\"type\": \"bar\", \"title\": \"Reliance Cash Flow Analysis\", \"data\": {\"labels\": [\"Operating CF\", \"Free CF\"], \"datasets\": [{\"label\": \"RELIANCE Cash Flow (\\u20b9)\", \"data\": [1860030038016, 251736244224]}]}}]"
+          }
+        ]
+      }
+    ]
+  },
+  "3aaf0df3-9144-4c7c-b093-85f6e481cc3d": {
+    "id": "3aaf0df3-9144-4c7c-b093-85f6e481cc3d",
+    "title": "New Chat",
+    "timestamp": "2025-12-28T00:57:08.310334",
+    "messages": []
+  },
+  "e61e3ec0-75d7-46f4-9274-6e69cc6bc6f3": {
+    "id": "e61e3ec0-75d7-46f4-9274-6e69cc6bc6f3",
+    "title": "TCS Risks Unveiled",
+    "timestamp": "2025-12-28T00:57:17.919860",
+    "messages": [
+      {
+        "role": "user",
+        "parts": [
+          {
+            "text": "provide insights on risks of tcs"
+          }
+        ]
+      }
+    ]
+  }
+}

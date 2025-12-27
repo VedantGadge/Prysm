@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import chatRoutes from "./routes/chat.js";
 import stockRoutes from "./routes/stock.js";
+import sessionsRoutes from "./routes/sessions.js";
 import connectDB from "./config/db.js";
 
 dotenv.config();
@@ -18,6 +19,7 @@ app.use(express.json());
 // Routes
 app.use("/api/chat", chatRoutes);
 app.use("/api/stock", stockRoutes);
+app.use("/api/sessions", sessionsRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

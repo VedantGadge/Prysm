@@ -8,7 +8,7 @@ const AI_AGENT_URL = process.env.AI_AGENT_URL || "http://localhost:8001";
 
 // Send message to AI agent and stream response
 router.post("/", async (req, res) => {
-  const { message, stockSymbol } = req.body;
+  const { message, stockSymbol, session_id } = req.body;
   // TODO: Get real userId from auth token
   const userId = "default_user_v1";
 
@@ -47,6 +47,7 @@ router.post("/", async (req, res) => {
         message,
         stock_symbol: stockSymbol,
         history: history, // Pass history to Python
+        session_id: session_id, // Pass session ID
       },
       {
         responseType: "stream",
