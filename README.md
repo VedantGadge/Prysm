@@ -4,12 +4,17 @@ A chat-based investment research UI where users can ask questions about stocks a
 
 ![Prysm Screenshot](./screenshot.png)
 
+For the full, code-accurate architecture (endpoints, data model, and diagrams), see [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md).
+
 ## System Architecture
 
 ```mermaid
 graph TD
     User[User] -->|Chat Message| Frontend[Frontend (React)]
-    Frontend -->|POST /chat (Stream)| Agent[AI Agent (FastAPI)]
+    Frontend -->|/api/*| Backend[Backend Gateway (Express)]
+    Backend -->|POST /chat (Stream)| Agent[AI Agent (FastAPI)]
+
+    Backend -->|Stock Search/Quote| YFNode[Yahoo Finance (yahoo-finance2)]
 
     subgraph "AI Agent (LangGraph)"
         Agent -->|Load/Save History| Mongo[(MongoDB)]
@@ -23,7 +28,8 @@ graph TD
         Tools -->|Fetch News| RSS[Google/Yahoo News RSS]
     end
 
-    Agent -->|Stream Chunks + UI Tokens| Frontend
+    Agent -->|Stream Chunks + UI Tokens| Backend
+    Backend -->|Stream Chunks + UI Tokens| Frontend
     Frontend -->|Render Markdown + Charts| User
 ```
 
@@ -53,10 +59,11 @@ graph TD
 ## Tech Stack
 
 - **Frontend**: React.js, Redux Toolkit, Tailwind CSS, Recharts/Chart.js
-- **Backend (Agent)**: Python 3.11, FastAPI, LangGraph, LangChain
-- **Database**: MongoDB (Motor Async Driver)
+- **Backend (Gateway)**: Node.js, Express, Axios (stream proxy), `yahoo-finance2`, Mongoose
+- **AI Agent**: Python 3.11, FastAPI, LangGraph, LangChain
+- **Databases**: MongoDB (Motor Async Driver), ChromaDB (local persistent store for RAG)
 - **AI Model**: Google Gemini 2.5 Flash / 1.5 Pro
-- **Data Sources**: `yfinance`, `feedparser` (News)
+- **Data Sources**: `yfinance`, `yahoo-finance2`, `feedparser` (News)
 
 ## Project Structure
 
@@ -73,15 +80,16 @@ prysm/
 │   ├── tools.py         # Data Tools (Charts, Risk, News)
 │   ├── stock_data.py    # Formatting Helpers
 │   └── requirements.txt
-└── backend/           # (Legacy/Auth) Node.js Backend
+└── backend/           # Node.js API gateway for frontend (/api/*)
 ```
 
 ## Current Data Flow
 
 1. **Session Management**:
 
-   - Frontend checks for `currentSessionId`. If missing, calls `POST /sessions` to create one in MongoDB.
-   - All chat messages include this `session_id`.
+    - Frontend checks for `currentSessionId`. If missing, calls `POST /api/sessions`.
+    - Backend proxies to the AI Agent, which creates the MongoDB session.
+    - All chat messages include this `session_id`.
 
 2. **Intent Extraction**:
 
@@ -92,10 +100,11 @@ prysm/
 
    - **Context**: If a stock is identified, recent price/financial data is injected into the System Prompt.
    - **Tools**: The agent decides which tools to call (Risk Gauge, Price Chart, Sentiment).
-   - **Streaming**: Tools return `ui_content` (rendered widgets) and `llm_data` (for analysis). These are streamed properly to the frontend.
+    - **Streaming**: The agent streams SSE-style chunks through the backend gateway to the frontend.
 
 4. **Visualization**:
-   - Frontend parses `[CHART:...]`, `[RISK:...]` tokens in the stream and renders React components.
+    - Frontend parses `data: ...` chunks from the stream.
+    - Text is appended incrementally; structured tool UI payloads are rendered as React components.
 
 ## Quick Start
 
@@ -108,6 +117,13 @@ prysm/
 
 ### 2. Setup
 
+**Run everything (recommended)**
+
+```bash
+npm install
+npm run dev
+```
+
 **AI Agent (Python)**
 
 ```bash
@@ -117,6 +133,14 @@ venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env  # Add GEMINI_API_KEY and MONGO_URI
 python -m uvicorn main:app --reload --port 8001
+```
+
+**Backend (Node Gateway)**
+
+```bash
+cd backend
+npm install
+npm run dev
 ```
 
 **Frontend (Node)**

@@ -231,7 +231,21 @@ def _derive_session_title(
 
     if normalized_mode == "overall":
         if "COMPARE" in msg_upper or " VS " in msg_upper or " V/S " in msg_upper:
+            if target_symbol:
+                return f"{target_symbol} Comparison".strip()
             return "Comparison"
+
+        # If a stock is selected in UI (passed as target_symbol), reflect it for stock-specific intents.
+        if target_symbol and intent in {"risk", "sentiment", "future", "chart", "analysis", "comparison"}:
+            suffix = {
+                "risk": "Risk",
+                "sentiment": "Sentiment",
+                "future": "Outlook",
+                "chart": "Chart",
+                "comparison": "Comparison",
+            }.get(intent or "", "Analysis")
+            return f"{target_symbol} {suffix}".strip()
+
         if intent in {"risk", "sentiment", "future", "chart"}:
             return _compact_title(intent.title())
         return "Portfolio / Market" if msg else "New Chat"
@@ -451,19 +465,29 @@ async def generate_response_stream(
     intent_history = [] if normalized_mode == "overall" else history
     intent_data = await extract_intent(message, intent_history)
 
-    target_symbol = intent_data.get("stock_symbol")
+    selected_symbol = (stock_symbol or "").strip() or None
+    requested_symbol = intent_data.get("stock_symbol")
     user_intent = intent_data.get("intent", "analysis")
 
-    # If user explicitly chose Stock mode and UI provided a stock, honor it.
-    if normalized_mode == "stock" and stock_symbol:
-        target_symbol = stock_symbol
+    # Decide whether a ticker is explicitly requested vs merely selected in UI
+    enforce_symbol = False
+    active_symbol = requested_symbol
+    if normalized_mode == "stock" and selected_symbol:
+        active_symbol = selected_symbol
+        enforce_symbol = True
         user_intent = user_intent or "analysis"
-    
-    print(f"[MAIN] Extracted target_symbol: {target_symbol}, intent: {user_intent}")
+    elif requested_symbol:
+        enforce_symbol = True
+
+    contextual_symbol = None
+    if not active_symbol and selected_symbol:
+        contextual_symbol = selected_symbol
+
+    print(f"[MAIN] Extracted target_symbol: {active_symbol}, intent: {user_intent} (selected={selected_symbol}, enforce={enforce_symbol})")
     
     # Improve session summary on first user message
     if len(history) == 0:
-        session_data["title"] = _derive_session_title(message, target_symbol, normalized_mode, user_intent)
+        session_data["title"] = _derive_session_title(message, active_symbol or contextual_symbol, normalized_mode, user_intent)
         session_data["preview"] = _derive_preview(message)
         session_data["updated_at"] = _now_utc()
         if db is not None:
@@ -485,23 +509,43 @@ async def generate_response_stream(
     elif normalized_mode == "stock":
         mode_hint = "\nMode: Stock. Focus on the selected ticker when applicable."
 
-    # Build system prompt with STRONG context enforcement
-    if target_symbol:
-        data = get_stock_data(target_symbol)
+    # Build system prompt.
+    # - If a ticker is explicitly requested (or Stock mode is selected), enforce it.
+    # - If a ticker is only selected in UI, include it as context without forcing it.
+    if active_symbol and enforce_symbol:
+        data = get_stock_data(active_symbol)
         context = create_stock_context(data)
         system_prompt_text = f"""You are Prysm, an expert financial analyst.
 
-IMPORTANT: The user is asking about {target_symbol}. You MUST analyze {target_symbol}.
-Do NOT ask the user for the ticker - it is {target_symbol}.
+IMPORTANT: The user is asking about {active_symbol}. You MUST analyze {active_symbol}.
+Do NOT ask the user for the ticker - it is {active_symbol}.
 
-Stock Data for {target_symbol}:
+Stock Data for {active_symbol}:
 {context}
 
 RULES:
 1. Use your tools (generate_chart, generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis) to provide visual insights.
-2. If the user asks to COMPARE {target_symbol} with another stock (e.g. INFY), **IMMEDIATELY call the `compare_stocks` tool**. Do not say "I don't have data for INFY". The tool will fetch it.
+2. If the user asks to COMPARE {active_symbol} with another stock (e.g. INFY), **IMMEDIATELY call the `compare_stocks` tool**. Do not say "I don't have data for INFY". The tool will fetch it.
 3. If the user attaches a document or asks about a file, use `consult_knowledge_base`.
 4. Always provide detailed analysis based on real data.
+{mode_hint}{profile_hint}
+"""
+    elif contextual_symbol:
+        data = get_stock_data(contextual_symbol)
+        context = create_stock_context(data)
+        system_prompt_text = f"""You are Prysm, an expert financial analyst.
+
+Selected stock context: {contextual_symbol}.
+The user has selected {contextual_symbol} in the UI. If the user's question is stock-specific but doesn't name a ticker, you may use {contextual_symbol} as the default.
+If the user's question is clearly portfolio-level / general, answer generally and do not force everything to be about {contextual_symbol}.
+
+Stock Data for {contextual_symbol} (context only):
+{context}
+
+RULES:
+1. Use your tools (generate_chart, generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis) to provide visual insights when useful.
+2. If the user asks to COMPARE {contextual_symbol} with another stock (e.g. INFY), **IMMEDIATELY call the `compare_stocks` tool**.
+3. If the user asks about an uploaded document (PDF, report, annual report), ALWAYS use the `consult_knowledge_base` tool.
 {mode_hint}{profile_hint}
 """
     else:
@@ -587,8 +631,8 @@ If the user asks about an uploaded document (PDF, report, annual report), ALWAYS
             {"_id": session_id},
             {
                 "$push": {"messages": {"$each": new_messages}},
-                "$set": {"preview": _derive_preview(message), "updated_at": _now_utc()},
-                "$setOnInsert": {"title": "New Chat", "preview": "", "created_at": _now_utc(), "updated_at": _now_utc()},
+                "$set": {"preview": _derive_preview(message), "updated_at": now_ts},
+                "$setOnInsert": {"title": "New Chat", "created_at": now_ts},
             },
             upsert=True
         )
