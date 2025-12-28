@@ -20,6 +20,7 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
 } from 'recharts'
+import TradingViewChart from './TradingViewChart'
 
 // Color palette for charts
 const COLORS = [
@@ -203,20 +204,26 @@ function ChartRenderer({ chartData }) {
         )
 
       case 'candlestick':
+        // Transform for TradingView (needs { time: '2023-01-01', open: 10, ... })
+        const tvCandleData = (() => {
+          // We need to parse 'chartDataTransformed' back or use original 'data' if structure is preserved
+          // 'chartDataTransformed' has: { name: 'YYYY-MM-DD', open, high, low, close }
+          return chartDataTransformed.map(d => ({
+            time: d.name,
+            open: d.open,
+            high: d.high,
+            low: d.low,
+            close: d.close
+          }))
+        })();
         return (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartDataTransformed}>
-              <XAxis dataKey="name" stroke="#64748b" />
-              <YAxis domain={['auto', 'auto']} stroke="#64748b" />
-              <Tooltip />
-              <Bar dataKey="close" name="Close Price">
-                {chartDataTransformed.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="w-full h-[300px]">
+            <TradingViewChart data={tvCandleData} type="candlestick" />
+          </div>
         )
+
+      // Also optionally use it for Line if desired (better interacitivity), but keeping Recharts for area for now.
+      // If user asks for 'line' specifically we could swap too, but let's stick to replacing Candlestick as primary use case.
 
       case 'bar':
         return (
@@ -253,28 +260,37 @@ function ChartRenderer({ chartData }) {
       case 'pie':
       case 'doughnut':
         const innerRadius = type === 'doughnut' ? 60 : 0
+        const isShareholding = title?.toLowerCase().includes('shareholding') ||
+          chartDataTransformed.some(d => ['Promoters', 'FII', 'DII', 'Public'].includes(d.name))
         return (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={chartDataTransformed}
-                cx="50%"
-                cy="50%"
-                innerRadius={innerRadius}
-                outerRadius={100}
-                paddingAngle={2}
-                dataKey="value"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                labelLine={{ stroke: '#64748b' }}
-              >
-                {chartDataTransformed.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#0f172a" strokeWidth={2} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <div>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={chartDataTransformed}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={innerRadius}
+                  outerRadius={100}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                  labelLine={{ stroke: '#64748b' }}
+                >
+                  {chartDataTransformed.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#0f172a" strokeWidth={2} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+            {isShareholding && (
+              <p className="text-xs text-dark-500 italic text-center mt-2">
+                ⚠️ Shareholding data is approximate. Source: Yahoo Finance (may differ from BSE/NSE filings)
+              </p>
+            )}
+          </div>
         )
 
       default:

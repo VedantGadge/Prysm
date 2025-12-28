@@ -52,6 +52,14 @@ export const selectSession = createAsyncThunk(
       const sessionData = await chatAPI.getSession(sessionId);
 
       // Map backend messages to frontend format
+      const snapshotMessages = (sessionData.snapshots || []).map((snap) => ({
+        id: "snap_" + Math.random().toString(36).substr(2, 9),
+        type: "ai",
+        content: `Daily summary (${snap.date}):\n${snap.summary}`,
+        timestamp: new Date().toISOString(),
+        isComplete: true,
+      }));
+
       const mappedMessages = (sessionData.messages || []).map((msg) => ({
         id: "hist_" + Math.random().toString(36).substr(2, 9),
         type: msg.role === "model" ? "ai" : "user",
@@ -60,7 +68,7 @@ export const selectSession = createAsyncThunk(
         isComplete: true,
       }));
 
-      return { sessionId, messages: mappedMessages, title: sessionData.title };
+      return { sessionId, messages: [...snapshotMessages, ...mappedMessages], title: sessionData.title };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -69,7 +77,7 @@ export const selectSession = createAsyncThunk(
 
 export const sendMessage = createAsyncThunk(
   "chat/sendMessage",
-  async ({ message, stockSymbol }, { dispatch, getState, rejectWithValue }) => {
+  async ({ message, stockSymbol, mode, profile }, { dispatch, getState, rejectWithValue }) => {
     const userMessageId = generateId();
     const aiMessageId = generateId();
     let sessionId = getState().chat.currentSessionId;
@@ -98,6 +106,8 @@ export const sendMessage = createAsyncThunk(
       const response = await chatAPI.sendMessage(
         message,
         stockSymbol,
+        mode,
+        profile,
         sessionId, // Pass session ID
         (chunk) => {
           dispatch(updateStreamingMessage({ id: aiMessageId, chunk }));

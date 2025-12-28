@@ -7,41 +7,55 @@ function WelcomeScreen() {
 
   const suggestions = [
     {
-      icon: Briefcase,
-      title: 'Portfolio',
-      description: 'How should I adjust my portfolio considering the recent Fed rate cut and its impact on emerging...',
-      query: 'How should I adjust my portfolio considering the recent Fed rate cut and its impact on emerging markets?',
+      icon: BarChart2,
+      title: 'Chart',
+      description: 'Generate a candlestick/line chart and explain the trend for a stock.',
+      query: 'Generate a candlestick chart for ICICIBANK and explain the last 3 months trend and key support/resistance levels.',
+      mode: 'stock',
+      profile: 'balanced',
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10',
     },
     {
-      icon: Briefcase,
-      title: 'Portfolio',
-      description: "What sectors in my portfolio might benefit from India's new trade agreements with New Zealand?",
-      query: "What sectors in my portfolio might benefit from India's new trade agreements with New Zealand?",
-      color: 'text-blue-400',
-      bgColor: 'bg-blue-500/10',
+      icon: TrendingUp,
+      title: 'Risk Gauge',
+      description: 'Get a risk score with reasons (beta, debt, margins).',
+      query: 'Show a risk gauge for RELIANCE and explain what drives the risk score in simple terms.',
+      mode: 'stock',
+      profile: 'strategic',
+      color: 'text-green-400',
+      bgColor: 'bg-primary-500/10',
     },
     {
       icon: Search,
-      title: 'Screener',
-      description: 'Screen for stocks in the insurance sector with rising institutional ownership amid market...',
-      query: 'Screen for stocks in the insurance sector with rising institutional ownership amid market volatility',
+      title: 'Compare',
+      description: 'Compare two stocks side-by-side on key metrics.',
+      query: 'Compare TCS vs INFY on price, market cap, P/E, ROE, net margin, growth, and debt. Summarize which looks stronger and why.',
+      mode: 'stock',
+      profile: 'balanced',
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
     },
     {
-      icon: Search,
-      title: 'Screener',
-      description: 'Identify IT companies with recent deal wins and improving margins as global demand rebounds.',
-      query: 'Identify IT companies with recent deal wins and improving margins as global demand rebounds',
+      icon: Briefcase,
+      title: 'Ask a PDF',
+      description: 'Upload a PDF (annual report) and ask questions from it.',
+      query: 'I uploaded a PDF. Pull the key risks, guidance, and important numbers from it and give me a short investment summary.',
+      mode: 'overall',
+      profile: 'strategic',
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
     },
   ]
 
   const handleSuggestionClick = (query) => {
-    dispatch(sendMessage({ message: query, stockSymbol: null }))
+    const suggestion = suggestions.find((s) => s.query === query)
+    dispatch(sendMessage({
+      message: query,
+      stockSymbol: null,
+      mode: suggestion?.mode,
+      profile: suggestion?.profile,
+    }))
   }
 
   return (

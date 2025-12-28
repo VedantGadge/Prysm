@@ -4,6 +4,26 @@ const API_BASE_URL = "/api";
 
 // API service for chat
 export const chatAPI = {
+  uploadDocument: async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    // Direct call to Agent URL (8001) for File Upload (bypassing Node gateway for simplicity as Node just proxies)
+    // Or we can add a route in Node. Let's assume Node gateway is set or we hit Agent directly.
+    // For this prototype, we'll hit Agent direct if CORS allows, or add a proxy in Node.
+    // Let's assume we use the gateway prefix /api/agent if setup, but current setup is /api/chat -> Node -> Agent.
+    // To keep it clean, we should add a route in Node.
+    // BUT for speed: let's try direct to Agent 8001 if possible, else we update Node.
+    // Actually, looking at the setup, 8001 is where the RAG endpoint lives.
+
+    // Let's use fetching to localhost:8001 directly for the prototype to avoid editing Node.
+    const response = await fetch("http://localhost:8001/upload_doc", {
+      method: "POST",
+      body: formData,
+    });
+    return response.json();
+  },
+
   getSessions: async () => {
     const response = await axios.get(`${API_BASE_URL}/sessions`);
     return response.data;
@@ -19,7 +39,7 @@ export const chatAPI = {
     return response.data;
   },
 
-  sendMessage: async (message, stockSymbol, sessionId, onChunk) => {
+  sendMessage: async (message, stockSymbol, mode, profile, sessionId, onChunk) => {
     try {
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: "POST",
@@ -29,6 +49,8 @@ export const chatAPI = {
         body: JSON.stringify({
           message,
           stockSymbol,
+          mode,
+          profile,
           session_id: sessionId,
         }),
       });

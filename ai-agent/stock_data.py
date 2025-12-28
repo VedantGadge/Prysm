@@ -159,22 +159,23 @@ def scrape_stock_data(symbol: str) -> dict:
 import time
 
 # Simple in-memory cache: {symbol: {'data': dict, 'timestamp': float}}
+# DISABLED: Always fetch fresh data per user request
 DATA_CACHE = {}
-CACHE_DURATION = 300  # 5 minutes
+CACHE_DURATION = 0  # 0 means cache is effectively disabled
 
 def get_stock_data(symbol: str) -> dict:
-    """Get real-time stock data from Yahoo Finance with caching."""
+    """Get real-time stock data from Yahoo Finance (always fresh, no caching)."""
     if not symbol:
         return None
         
     symbol = symbol.upper()
         
-    # Check Cache
-    if symbol in DATA_CACHE:
-        cached = DATA_CACHE[symbol]
-        if time.time() - cached['timestamp'] < CACHE_DURATION:
-            print(f"[DEBUG] Returning cached data for {symbol}")
-            return cached['data']
+    # Cache is disabled (CACHE_DURATION = 0), always fetch fresh
+    # if symbol in DATA_CACHE:
+    #     cached = DATA_CACHE[symbol]
+    #     if time.time() - cached['timestamp'] < CACHE_DURATION:
+    #         print(f"[DEBUG] Returning cached data for {symbol}")
+    #         return cached['data']
     
     try:
         ticker = get_ticker_obj(symbol)

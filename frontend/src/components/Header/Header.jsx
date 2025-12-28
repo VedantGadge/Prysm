@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { 
-  Search, 
-  Menu, 
-  Sun, 
-  Moon, 
+import {
+  Search,
+  Menu,
+  Sun,
+  Moon,
   Bell,
   Eye,
-  Command
+  Command,
+  Download
 } from 'lucide-react'
 import StockSelector from '../StockSelector/StockSelector'
+import { generatePDF } from '../../services/pdfService'
 
 function Header({ sidebarOpen, onToggleSidebar }) {
   const selectedStock = useSelector((state) => state.stock.selectedStock)
@@ -74,6 +76,15 @@ function Header({ sidebarOpen, onToggleSidebar }) {
         {/* Theme Toggle */}
         <button className="p-2 hover:bg-dark-800 rounded-lg transition-colors">
           <Sun size={18} className="text-dark-400" />
+        </button>
+
+        {/* Export PDF */}
+        <button
+          onClick={() => generatePDF('chat-container-export-target', 'Prysm Report')}
+          className="p-2 hover:bg-dark-800 rounded-lg transition-colors"
+          title="Export as PDF"
+        >
+          <Download size={18} className="text-dark-400" />
         </button>
 
         {/* Watchlist */}

@@ -72,17 +72,19 @@ function Sidebar({ isOpen, onToggle }) {
         <div className="space-y-1">
           {sessionList.map((chat) => (
             <button
-              key={chat.id}
-              onClick={() => handleSelectSession(chat.id)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors group text-left ${currentSessionId === chat.id
-                  ? 'bg-dark-800 border border-dark-700 text-dark-100'
-                  : 'hover:bg-dark-800 text-dark-300'
+              key={chat.id || chat._id}
+              onClick={() => handleSelectSession(chat.id || chat._id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors group text-left ${currentSessionId === (chat.id || chat._id)
+                ? 'bg-dark-800 border border-dark-700 text-dark-100'
+                : 'hover:bg-dark-800 text-dark-300'
                 }`}
             >
-              <MessageSquare size={16} className={`flex-shrink-0 ${currentSessionId === chat.id ? 'text-primary-400' : 'text-dark-500'}`} />
+              <MessageSquare size={16} className={`flex-shrink-0 ${currentSessionId === (chat.id || chat._id) ? 'text-primary-400' : 'text-dark-500'}`} />
               <div className="flex-1 min-w-0">
                 <div className="truncate font-medium">{chat.title || 'New Chat'}</div>
-                {/* Optional: Show timestamp or preview? */}
+                {chat.preview && (
+                  <div className="truncate text-xs text-dark-500">{chat.preview}</div>
+                )}
               </div>
               <MoreHorizontal
                 size={14}

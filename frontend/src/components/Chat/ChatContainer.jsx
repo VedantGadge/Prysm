@@ -25,7 +25,7 @@ function ChatContainer() {
         {messages.length === 0 ? (
           <WelcomeScreen />
         ) : (
-          <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+          <div id="chat-container-export-target" className="max-w-4xl mx-auto px-4 py-6 space-y-6">
             {messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}

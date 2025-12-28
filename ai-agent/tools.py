@@ -123,7 +123,7 @@ def generate_chart(ticker: str, chart_type: str, metric: str, title: Optional[st
             
             if chart_type == "candlestick":
                 hist = hist.tail(30)
-                chart_data["labels"] = [d.strftime("%m-%d") for d in hist.index]
+                chart_data["labels"] = [d.strftime("%Y-%m-%d") for d in hist.index]
                 chart_data["datasets"] = [{"label": f"{ticker} OHLC", "data": [[row['Open'], row['High'], row['Low'], row['Close']] for _, row in hist.iterrows()]}]
             elif chart_type == "area":
                 monthly = hist.resample('M').last()
@@ -152,6 +152,26 @@ def generate_chart(ticker: str, chart_type: str, metric: str, title: Optional[st
                 chart_data["datasets"] = [{"label": "Margins %", "data": [gm or 0, nm or 0, roe or 0]}]
             else:
                 return {"ui_content": "", "llm_data": {"result": f"Metric {metric} not supported"}}
+                
+        elif chart_type in ["pie", "doughnut"]:
+            if metric == "shareholding":
+                shareholding = data.get("shareholding", {})
+                if not shareholding:
+                    return {"ui_content": "", "llm_data": {"result": "Shareholding data unavailable"}}
+                
+                chart_data["labels"] = ["Promoters", "FII", "DII", "Public"]
+                chart_data["datasets"] = [{
+                    "label": "Shareholding Pattern",
+                    "data": [
+                        shareholding.get("promoters", 0),
+                        shareholding.get("fii", 0),
+                        shareholding.get("dii", 0),
+                        shareholding.get("public", 0)
+                    ]
+                }]
+            else:
+                return {"ui_content": "", "llm_data": {"result": f"Pie chart for {metric} not supported (try 'shareholding')"}}
+                
         else:
             return {"ui_content": "", "llm_data": {"result": f"Chart type {chart_type} not supported"}}
     except Exception as e:
@@ -303,5 +323,91 @@ def generate_sentiment_analysis(ticker: str) -> Dict[str, Any]:
             "result": "Sentiment Analysis displayed.",
             "overall": overall,
             "score": score
+        }
+    }
+
+# --- TOOL 5: STOCK COMPARISON ---
+@tool
+def compare_stocks(ticker1: str, ticker2: str) -> Dict[str, Any]:
+    """
+    Compares two stocks side-by-side on key financial metrics.
+    Args:
+        ticker1: First stock symbol (e.g. TCS)
+        ticker2: Second stock symbol (e.g. INFY)
+    """
+    data1 = get_stock_data(ticker1)
+    data2 = get_stock_data(ticker2)
+    
+    if not data1 or not data2:
+        return {"ui_content": "", "llm_data": {"result": f"Data unavailable for one or more tickers ({ticker1}, {ticker2})"}}
+        
+    def get_val(data, path):
+        # path e.g. "financials.detailed.trailingPE"
+        keys = path.split(".")
+        val = data
+        for k in keys:
+            val = val.get(k, {})
+        return val if isinstance(val, (int, float, str)) else "N/A"
+
+    # Define comparison rows
+    metrics = [
+        ("Price", "quote.price"),
+        ("Market Cap", "financials.detailed.marketCap"),
+        ("P/E Ratio", "financials.detailed.trailingPE"),
+        ("P/B Ratio", "financials.detailed.priceToBook"),
+        ("ROE %", "financials.detailed.returnOnEquity"),
+        ("Net Margin %", "financials.detailed.netMargin"),
+        ("Rev Growth %", "financials.detailed.revenueGrowth"),
+        ("Debt/Eq", "financials.detailed.debtToEquity")
+    ]
+    
+    comparison_data = []
+    for label, path in metrics:
+        comparison_data.append({
+            "metric": label,
+            ticker1: get_val(data1, path),
+            ticker2: get_val(data2, path)
+        })
+        
+    payload = {
+        "ticker1": ticker1,
+        "ticker2": ticker2,
+        "data": comparison_data
+    }
+    
+    return {
+        "ui_content": f"[COMPARISON:{json.dumps(payload)}]",
+        "llm_data": {
+            "result": f"Comparison between {ticker1} and {ticker2} displayed.",
+            "data": str(comparison_data)
+        }
+    }
+
+# --- TOOL 6: RAG RETRIEVAL ---
+from rag_service import query_rag
+
+@tool
+def consult_knowledge_base(query: str) -> Dict[str, Any]:
+    """
+    Searches uploaded documents (PDFs, reports) for information.
+    Use this when the user asks about specific uploaded files within their "knowledge base".
+    It retrieves relevant excerpts from the vector database.
+    """
+    docs = query_rag(query, n_results=3)
+    
+    if not docs:
+        return {
+            "ui_content": "",
+            "llm_data": {"result": "No relevant info found in uploaded documents."}
+        }
+    
+    # Simple context joining
+    context = "\n\n".join([f"Excerpt: {d}" for d in docs])
+    
+    return {
+        "ui_content": "[DOC_SEARCH_ACTIVE]",
+        "llm_data": {
+            "result": "Found relevant document excerpts.",
+            "excerpts": context
         }
     }

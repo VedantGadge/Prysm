@@ -5,6 +5,7 @@ import ChartRenderer from '../Charts/ChartRenderer'
 import RiskGauge from '../Charts/RiskGauge'
 import FutureTimeline from '../Charts/FutureTimeline'
 import SentimentCard from '../Charts/SentimentCard'
+import ComparisonTable from '../Charts/ComparisonTable'
 import LoadingIndicator from '../UI/LoadingIndicator'
 
 // Helper component for smooth typing effect
@@ -95,7 +96,7 @@ function ChatMessage({ message }) {
       let cleaned = text
 
       // Remove complete tool tags
-      cleaned = cleaned.replace(/\[(CHART|RISK|TIMELINE|SENTIMENT):\{[\s\S]*?\}\]/g, '')
+      cleaned = cleaned.replace(/\[(CHART|RISK|TIMELINE|SENTIMENT|COMPARISON):\{[\s\S]*?\}\]/g, '')
 
       // Remove leaked tool response JSON (hallucinated or injected)
       // Matches {"generate_..._response": ... }
@@ -123,12 +124,13 @@ function ChatMessage({ message }) {
       const riskIdx = content.indexOf('[RISK:', currentIndex)
       const timelineIdx = content.indexOf('[TIMELINE:', currentIndex)
       const sentimentIdx = content.indexOf('[SENTIMENT:', currentIndex)
+      const comparisonIdx = content.indexOf('[COMPARISON:', currentIndex)
 
-      const indices = [chartIdx, riskIdx, timelineIdx, sentimentIdx].filter(i => i !== -1)
+      const indices = [chartIdx, riskIdx, timelineIdx, sentimentIdx, comparisonIdx].filter(i => i !== -1)
 
       if (indices.length === 0) {
         const remaining = content.slice(currentIndex)
-        const partialTagMatch = /\[(CHART|RISK|TIMELINE|SENTIMENT):?[\s\S]*$/.exec(remaining)
+        const partialTagMatch = /\[(CHART|RISK|TIMELINE|SENTIMENT|COMPARISON):?[\s\S]*$/.exec(remaining)
 
         if (partialTagMatch && message.isLoading) {
           const cleanText = cleanTextContent(remaining.slice(0, partialTagMatch.index))
@@ -140,11 +142,12 @@ function ChatMessage({ message }) {
         break
       }
 
-      const tagStart = Math.min(...indices)
+      let tagStart = Math.min(...indices)
       let tagType = 'CHART'
       if (tagStart === riskIdx) tagType = 'RISK'
       if (tagStart === timelineIdx) tagType = 'TIMELINE'
       if (tagStart === sentimentIdx) tagType = 'SENTIMENT'
+      if (tagStart === comparisonIdx) tagType = 'COMPARISON'
 
       const prefixLen = tagType.length + 2
 
@@ -226,6 +229,8 @@ function ChatMessage({ message }) {
             parts.push({ type: 'timeline', data: parsedData })
           } else if (tagType === 'SENTIMENT') {
             parts.push({ type: 'sentiment', data: parsedData })
+          } else if (tagType === 'COMPARISON') {
+            parts.push({ type: 'comparison', data: parsedData })
           }
 
           currentIndex = tagEnd
@@ -314,23 +319,28 @@ function ChatMessage({ message }) {
                   )
                 }
                 if (part.type === 'chart') return (
-                  <div className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
-                    <ChartRenderer key={index} chartData={part.data} />
+                  <div key={index} className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
+                    <ChartRenderer chartData={part.data} />
                   </div>
                 )
                 if (part.type === 'risk') return (
-                  <div className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
-                    <RiskGauge key={index} data={part.data} />
+                  <div key={index} className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
+                    <RiskGauge data={part.data} />
                   </div>
                 )
                 if (part.type === 'timeline') return (
-                  <div className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
-                    <FutureTimeline key={index} data={part.data} />
+                  <div key={index} className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
+                    <FutureTimeline data={part.data} />
                   </div>
                 )
                 if (part.type === 'sentiment') return (
-                  <div className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
-                    <SentimentCard key={index} data={part.data} />
+                  <div key={index} className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
+                    <SentimentCard data={part.data} />
+                  </div>
+                )
+                if (part.type === 'comparison') return (
+                  <div key={index} className="animate-text-fade-in py-2" style={{ animationDelay: '200ms' }}>
+                    <ComparisonTable data={part.data} />
                   </div>
                 )
                 return null

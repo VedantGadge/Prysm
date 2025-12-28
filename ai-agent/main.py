@@ -3,8 +3,9 @@ import json
 import uuid
 import asyncio
 import httpx
+from datetime import datetime, timezone
 from typing import Optional, AsyncGenerator, Dict, Any, List
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -15,8 +16,9 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, Tool
 from graph import graph
 
 # Tool Imports for Auto-Inject
-from tools import generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis
+from tools import generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis, compare_stocks, consult_knowledge_base
 from stock_data import get_stock_data, generate_price_history
+from rag_service import process_pdf, clear_db as clear_rag_db
 
 # MONGODB Imports
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -121,7 +123,7 @@ Rules:
 - If no stock is mentioned or implied, return null
 
 Return ONLY valid JSON:
-{{"stock_symbol": "ACTUAL_TICKER" or null, "intent": "risk/chart/future/sentiment/analysis/general"}}"""
+{{"stock_symbol": "MAIN_TICKER" or null, "second_symbol": "SECOND_TICKER" or null, "intent": "risk/chart/future/sentiment/analysis/comparison/general"}}"""
     
     try:
         if not client_gemini: return {"stock_symbol": None, "intent": "general"}
@@ -171,11 +173,225 @@ Return ONLY valid JSON:
             return {"stock_symbol": last_stock, "intent": "analysis"}
         return {"stock_symbol": None, "intent": "general"}
 
+
+
 def create_stock_context(stock_data: dict) -> str:
     if not stock_data: return "No data."
     quote = stock_data.get('quote', {})
     fin = stock_data.get('financials', {}).get('detailed', {})
-    return f"Stock: {quote.get('symbol')}, Price: {quote.get('price')}, PE: {fin.get('trailingPE')}"
+    ratios = stock_data.get('financials', {}).get('ratios', {})
+    shareholding = stock_data.get('shareholding', {})
+    company = stock_data.get('companyInfo', {})
+    
+    # Helper for safe formatting
+    def safe_pct(val):
+        if val is None: return "N/A"
+        try: return f"{float(val):.2f}"
+        except: return "N/A"
+    
+    desc = company.get('description') or "No description available."
+    desc = desc[:500] if len(desc) > 500 else desc
+    
+    context = (
+        f"Stock: {quote.get('symbol', 'N/A')} ({company.get('sector', 'N/A')})\n"
+        f"Price: {quote.get('price', 'N/A')} (Change: {quote.get('changePercent', 'N/A')}%)\n"
+        f"Market Cap: {fin.get('marketCap', 'N/A')}\n"
+        f"P/E: {fin.get('trailingPE', 'N/A')} | PEG: {fin.get('pegRatio', 'N/A')} | P/B: {fin.get('priceToBook', 'N/A')}\n"
+        f"Margins: Gross {safe_pct(fin.get('grossMargin'))}%, Net {safe_pct(fin.get('netMargin'))}%, Operating {safe_pct(fin.get('operatingMargin'))}%\n"
+        f"Returns: ROE {safe_pct(fin.get('returnOnEquity'))}%, ROA {safe_pct(fin.get('returnOnAssets'))}%\n"
+        f"Growth: Rev Growth {safe_pct(fin.get('revenueGrowth'))}%, Earnings Growth {safe_pct(fin.get('earningsGrowth'))}%\n"
+        f"Balance Sheet: Debt/Eq {fin.get('debtToEquity', 'N/A')}, Current Ratio {fin.get('currentRatio', 'N/A')}\n"
+        f"Cash Flow: Operating {fin.get('operatingCashflow', 'N/A')}, Free {fin.get('freeCashflow', 'N/A')}\n"
+        f"Shareholding: Promoters {shareholding.get('promoters', 'N/A')}%, FII {shareholding.get('fii', 'N/A')}%, DII {shareholding.get('dii', 'N/A')}%, Public {shareholding.get('public', 'N/A')}%\n"
+        f"Description: {desc}..."
+    )
+    return context
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _compact_title(text: str, max_len: int = 44) -> str:
+    t = (text or "").strip()
+    if not t:
+        return "New Chat"
+    t = " ".join(t.split())
+    return (t[: max_len - 1] + "…") if len(t) > max_len else t
+
+
+def _derive_session_title(
+    first_user_message: str,
+    target_symbol: Optional[str],
+    normalized_mode: Optional[str],
+    intent: Optional[str],
+) -> str:
+    msg = (first_user_message or "").strip()
+    msg_upper = msg.upper()
+
+    if normalized_mode == "overall":
+        if "COMPARE" in msg_upper or " VS " in msg_upper or " V/S " in msg_upper:
+            return "Comparison"
+        if intent in {"risk", "sentiment", "future", "chart"}:
+            return _compact_title(intent.title())
+        return "Portfolio / Market" if msg else "New Chat"
+
+    if target_symbol:
+        suffix = {
+            "risk": "Risk",
+            "sentiment": "Sentiment",
+            "future": "Outlook",
+            "chart": "Chart",
+            "comparison": "Comparison",
+        }.get(intent or "", "Analysis")
+        return f"{target_symbol} {suffix}".strip()
+
+    return _compact_title(msg)
+
+
+def _derive_preview(user_message: str) -> str:
+    return _compact_title(user_message, max_len=70)
+
+
+def _utc_date_str(dt: datetime) -> str:
+    return dt.astimezone(timezone.utc).date().isoformat()
+
+
+def _message_ts_to_date_str(msg: Dict[str, Any]) -> Optional[str]:
+    ts = msg.get("ts")
+    if not ts:
+        return None
+    try:
+        if isinstance(ts, datetime):
+            return _utc_date_str(ts)
+        # Accept ISO strings
+        return _utc_date_str(datetime.fromisoformat(str(ts).replace("Z", "+00:00")))
+    except Exception:
+        return None
+
+
+async def _summarize_text_with_gemini(text: str) -> Optional[str]:
+    if not text or not client_gemini:
+        return None
+    prompt = (
+        "Summarize the following chat for durable storage. "
+        "Return a concise snapshot with: bullets for key questions, key answers, tickers discussed, and action items. "
+        "Keep it under 1200 characters.\n\n"
+        f"CHAT:\n{text}"
+    )
+    try:
+        response = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: client_gemini.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(temperature=0.2),
+            ),
+        )
+        out = (response.text or "").strip()
+        return out[:1200]
+    except Exception as e:
+        print(f"[SNAPSHOT] Gemini summarize failed: {e}")
+        return None
+
+
+def _fallback_snapshot(messages: List[Dict[str, Any]]) -> str:
+    # Simple deterministic fallback: keep the first/last user prompts and tickers.
+    users = [m for m in messages if m.get("role") == "user"]
+    models = [m for m in messages if m.get("role") == "model"]
+    first_user = (users[0].get("parts", [{}])[0].get("text", "") if users else "").strip()
+    last_user = (users[-1].get("parts", [{}])[0].get("text", "") if users else "").strip()
+    last_model = (models[-1].get("parts", [{}])[0].get("text", "") if models else "").strip()
+    last_model = _compact_title(last_model, max_len=220)
+
+    lines = []
+    if first_user:
+        lines.append(f"- Started with: {_compact_title(first_user, max_len=140)}")
+    if last_user and last_user != first_user:
+        lines.append(f"- Ended with: {_compact_title(last_user, max_len=140)}")
+    if last_model:
+        lines.append(f"- Latest answer snippet: {last_model}")
+    if not lines:
+        lines.append("- Summary unavailable")
+    return "\n".join(lines)
+
+
+async def _archive_previous_days(session_id: str) -> None:
+    """Summarize and prune messages from previous UTC days into snapshots."""
+    if db is None:
+        return
+
+    session = await db.agent_sessions.find_one({"_id": session_id})
+    if not session:
+        return
+
+    messages = session.get("messages", []) or []
+    if not messages:
+        return
+
+    today = _utc_date_str(_now_utc())
+
+    # Group messages by UTC day (only those with timestamps).
+    by_day: Dict[str, List[Dict[str, Any]]] = {}
+    kept: List[Dict[str, Any]] = []
+
+    for m in messages:
+        day = _message_ts_to_date_str(m)
+        # If no timestamp, keep it to avoid accidental data loss.
+        if not day:
+            kept.append(m)
+            continue
+        if day == today:
+            kept.append(m)
+            continue
+        by_day.setdefault(day, []).append(m)
+
+    if not by_day:
+        return
+
+    existing = session.get("snapshots", []) or []
+    existing_days = {s.get("date") for s in existing if isinstance(s, dict)}
+    new_snapshots = []
+
+    # Summarize each day not yet snapshotted.
+    for day in sorted(by_day.keys()):
+        if day in existing_days:
+            # Already snapshotted; just drop the old messages.
+            continue
+
+        day_msgs = by_day[day]
+        # Build compact transcript
+        transcript_lines = []
+        for msg in day_msgs:
+            role = msg.get("role", "")
+            text = msg.get("parts", [{}])[0].get("text", "")
+            if not text:
+                continue
+            text = " ".join(str(text).split())
+            transcript_lines.append(f"{role}: {text}")
+        transcript = "\n".join(transcript_lines)
+        transcript = transcript[:12000]
+
+        summary = await _summarize_text_with_gemini(transcript)
+        if not summary:
+            summary = _fallback_snapshot(day_msgs)
+
+        new_snapshots.append({
+            "date": day,
+            "summary": summary,
+            "message_count": len(day_msgs),
+            "created_at": _now_utc(),
+        })
+
+    # Remove all previous-day timestamped messages regardless (we keep only today's + untimestamped)
+    await db.agent_sessions.update_one(
+        {"_id": session_id},
+        {
+            "$set": {"messages": kept, "updated_at": _now_utc()},
+            "$push": {"snapshots": {"$each": new_snapshots}} if new_snapshots else {},
+        },
+        upsert=True,
+    )
 
 
 class ChatRequest(BaseModel):
@@ -183,10 +399,18 @@ class ChatRequest(BaseModel):
     stock_symbol: Optional[str] = None
     session_id: Optional[str] = None
     history: Optional[List[Dict[str, Any]]] = []
+    mode: Optional[str] = None  # 'overall' | 'stock'
+    profile: Optional[str] = None  # 'strategic' | 'balanced'
 
 
 # --- MAIN RESPONSE STREAM ---
-async def generate_response_stream(message: str, session_id: str = None):
+async def generate_response_stream(
+    message: str,
+    session_id: str = None,
+    stock_symbol: Optional[str] = None,
+    mode: Optional[str] = None,
+    profile: Optional[str] = None,
+):
     
     # 1. Fetch Session from DB (null-safe)
     session_data = None
@@ -194,23 +418,72 @@ async def generate_response_stream(message: str, session_id: str = None):
         session_data = await db.agent_sessions.find_one({"_id": session_id})
     
     if not session_data:
-        session_id = str(uuid.uuid4())
-        session_data = {"_id": session_id, "title": "New Chat", "messages": [], "created_at": "now"}
+        # If caller provided a session_id, keep it; otherwise create one.
+        session_id = session_id or str(uuid.uuid4())
+        session_data = {
+            "_id": session_id,
+            "title": "New Chat",
+            "preview": "",
+            "messages": [],
+            "created_at": _now_utc(),
+            "updated_at": _now_utc(),
+        }
+        if db is not None:
+            await db.agent_sessions.replace_one({"_id": session_id}, session_data, upsert=True)
+
+    # Archive older days into snapshots before adding more turns
+    if db is not None:
+        try:
+            await _archive_previous_days(session_id)
+        except Exception as e:
+            print(f"[SNAPSHOT] Archive failed: {e}")
     
+    # Re-fetch after potential archival
+    if db is not None:
+        session_data = await db.agent_sessions.find_one({"_id": session_id}) or session_data
     history = session_data.get("messages", [])
 
     # 2. Intent & Context
-    intent_data = await extract_intent(message, history)
+    normalized_mode = (mode or "").strip().lower() or None
+    normalized_profile = (profile or "").strip().lower() or None
+
+    # If user explicitly chose Overall, reduce sticky-stock behavior by not feeding prior stock context
+    intent_history = [] if normalized_mode == "overall" else history
+    intent_data = await extract_intent(message, intent_history)
+
     target_symbol = intent_data.get("stock_symbol")
     user_intent = intent_data.get("intent", "analysis")
+
+    # If user explicitly chose Stock mode and UI provided a stock, honor it.
+    if normalized_mode == "stock" and stock_symbol:
+        target_symbol = stock_symbol
+        user_intent = user_intent or "analysis"
     
     print(f"[MAIN] Extracted target_symbol: {target_symbol}, intent: {user_intent}")
     
-    # Update title if it's new
-    if len(history) == 0 and target_symbol:
-        session_data["title"] = f"{target_symbol} Analysis"
+    # Improve session summary on first user message
+    if len(history) == 0:
+        session_data["title"] = _derive_session_title(message, target_symbol, normalized_mode, user_intent)
+        session_data["preview"] = _derive_preview(message)
+        session_data["updated_at"] = _now_utc()
         if db is not None:
-            await db.agent_sessions.replace_one({"_id": session_id}, session_data, upsert=True)
+            await db.agent_sessions.update_one(
+                {"_id": session_id},
+                {"$set": {"title": session_data["title"], "preview": session_data["preview"], "updated_at": session_data["updated_at"]}},
+                upsert=True,
+            )
+
+    profile_hint = ""
+    if normalized_profile == "strategic":
+        profile_hint = "\nUser preference: Strategic (long-term, fundamentals, risk-aware)."
+    elif normalized_profile == "balanced":
+        profile_hint = "\nUser preference: Balanced (moderate risk, avoid extremes, practical tradeoffs)."
+
+    mode_hint = ""
+    if normalized_mode == "overall":
+        mode_hint = "\nMode: Overall. Provide portfolio-level / general guidance unless the user asks about a specific ticker."
+    elif normalized_mode == "stock":
+        mode_hint = "\nMode: Stock. Focus on the selected ticker when applicable."
 
     # Build system prompt with STRONG context enforcement
     if target_symbol:
@@ -224,11 +497,18 @@ Do NOT ask the user for the ticker - it is {target_symbol}.
 Stock Data for {target_symbol}:
 {context}
 
-Use your tools (generate_chart, generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis) to provide visual insights.
-Always provide detailed analysis based on real data."""
+RULES:
+1. Use your tools (generate_chart, generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis) to provide visual insights.
+2. If the user asks to COMPARE {target_symbol} with another stock (e.g. INFY), **IMMEDIATELY call the `compare_stocks` tool**. Do not say "I don't have data for INFY". The tool will fetch it.
+3. If the user attaches a document or asks about a file, use `consult_knowledge_base`.
+4. Always provide detailed analysis based on real data.
+{mode_hint}{profile_hint}
+"""
     else:
         system_prompt_text = """You are Prysm, an expert financial analyst.
-If the user asks about a stock without specifying a ticker, ask them which stock they want to analyze (e.g., "RELIANCE", "TCS", "INFY")."""
+If the user asks about a stock without specifying a ticker, ask them which stock they want to analyze.
+If they ask to COMPARE two stocks, immediately use the `compare_stocks` tool (e.g. compare_stocks('TCS', 'INFY')).
+If the user asks about an uploaded document (PDF, report, annual report), ALWAYS use the `consult_knowledge_base` tool to search for relevant information before answering.""" + f"{mode_hint}{profile_hint}"
 
     # 3. Message Construction (LangChain format)
     lc_messages = [SystemMessage(content=system_prompt_text)]
@@ -236,20 +516,21 @@ If the user asks about a stock without specifying a ticker, ask them which stock
         if turn['role'] == 'user': lc_messages.append(HumanMessage(content=turn['parts'][0]['text']))
         else: lc_messages.append(AIMessage(content=turn['parts'][0]['text']))
     
-    # 4. AUTO-INJECT
+    # 4. AUTO-INJECT (DISABLED to prevent double-tool repetition)
+    # The LangGraph agent is smart enough to call these tools itself.
     auto_tools = []
-    if target_symbol:
-        if user_intent == "risk": auto_tools.append(("risk", generate_risk_gauge))
-        elif user_intent == "future": auto_tools.append(("future", generate_future_timeline))
-        elif user_intent == "sentiment": auto_tools.append(("sentiment", generate_sentiment_analysis))
+    # if target_symbol:
+    #     if user_intent == "risk": auto_tools.append(("risk", generate_risk_gauge))
+    #     elif user_intent == "future": auto_tools.append(("future", generate_future_timeline))
+    #     elif user_intent == "sentiment": auto_tools.append(("sentiment", generate_sentiment_analysis))
     
-    for _, tool_func in auto_tools:
-        res = tool_func.invoke({"ticker": target_symbol})
-        if isinstance(res, dict):
-            ui = res.get("ui_content", "")
-            if ui: yield f"data: {json.dumps({'content': ui})}\n\n"
-            summary = res.get("llm_data", {})
-            lc_messages.append(SystemMessage(content=f"AUTO-ANALYSIS DATA for {target_symbol}: {json.dumps(summary)}"))
+    # for _, tool_func in auto_tools:
+    #     res = tool_func.invoke({"ticker": target_symbol})
+    #     if isinstance(res, dict):
+    #         ui = res.get("ui_content", "")
+    #         if ui: yield f"data: {json.dumps({'content': ui})}\n\n"
+    #         summary = res.get("llm_data", {})
+    #         lc_messages.append(SystemMessage(content=f"AUTO-ANALYSIS DATA for {target_symbol}: {json.dumps(summary)}"))
 
     lc_messages.append(HumanMessage(content=message))
 
@@ -296,14 +577,19 @@ If the user asks about a stock without specifying a ticker, ask them which stock
                 accumulated_text += ui
 
     # 6. Save to DB (if available)
+    now_ts = _now_utc()
     new_messages = [
-        {"role": "user", "parts": [{"text": message}]},
-        {"role": "model", "parts": [{"text": accumulated_text}]}
+        {"role": "user", "parts": [{"text": message}], "ts": now_ts},
+        {"role": "model", "parts": [{"text": accumulated_text}], "ts": now_ts}
     ]
     if db is not None:
         await db.agent_sessions.update_one(
             {"_id": session_id},
-            {"$push": {"messages": {"$each": new_messages}}, "$setOnInsert": {"title": "New Chat", "created_at": "now"}},
+            {
+                "$push": {"messages": {"$each": new_messages}},
+                "$set": {"preview": _derive_preview(message), "updated_at": _now_utc()},
+                "$setOnInsert": {"title": "New Chat", "preview": "", "created_at": _now_utc(), "updated_at": _now_utc()},
+            },
             upsert=True
         )
 
@@ -313,14 +599,20 @@ If the user asks about a stock without specifying a ticker, ask them which stock
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     return StreamingResponse(
-        generate_response_stream(request.message, request.session_id),
+        generate_response_stream(
+            request.message,
+            request.session_id,
+            request.stock_symbol,
+            request.mode,
+            request.profile,
+        ),
         media_type="text/event-stream"
     )
 
 @app.get("/sessions")
 async def get_sessions():
     if db is None: return []
-    cursor = db.agent_sessions.find().sort("created_at", -1)
+    cursor = db.agent_sessions.find().sort("updated_at", -1)
     sessions = await cursor.to_list(length=50)
     return sessions
 
@@ -333,11 +625,53 @@ async def get_session(session_id: str):
 @app.post("/sessions")
 async def create_session():
     new_id = str(uuid.uuid4())
-    session = {"_id": new_id, "id": new_id, "title": "New Chat", "messages": [], "created_at": "now"}
     if db is not None:
-        await db.agent_sessions.insert_one(session)
-    return session
+        await db.agent_sessions.insert_one({
+            "_id": new_id,
+            "title": "New Chat",
+            "preview": "",
+            "messages": [],
+            "created_at": _now_utc(),
+            "updated_at": _now_utc(),
+        })
+    return {"id": new_id}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+# --- RAG ENDPOINTS ---
+import tempfile
+import shutil
+
+@app.post("/upload_doc")
+async def upload_document(file: UploadFile = File(...)):
+    """Upload a PDF document, process it, and add to the RAG vector database."""
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+    
+    try:
+        # Save to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+        
+        # Process and add to ChromaDB
+        doc_id = file.filename.replace('.pdf', '') + '_' + str(uuid.uuid4())[:8]
+        success, chunk_count = process_pdf(tmp_path, doc_id)
+        
+        # Cleanup temp file
+        os.remove(tmp_path)
+        
+        if success:
+            return {"status": "success", "message": f"Processed {chunk_count} chunks from {file.filename}", "doc_id": doc_id}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to process PDF.")
+    except Exception as e:
+        print(f"[RAG Upload Error] {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/clear_rag")
+async def clear_rag():
+    """Clear all documents from the RAG vector database."""
+    try:
+        clear_rag_db()
+        return {"status": "success", "message": "RAG database cleared."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

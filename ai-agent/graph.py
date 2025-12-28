@@ -13,7 +13,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_core.messages import BaseMessage, SystemMessage, ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from tools import generate_chart, generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis
+from tools import generate_chart, generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis, compare_stocks, consult_knowledge_base
 
 from pathlib import Path
 import sys
@@ -61,7 +61,7 @@ llm = ChatGoogleGenerativeAI(
 )
 
 # Bind tools to the model
-tools = [generate_chart, generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis]
+tools = [generate_chart, generate_risk_gauge, generate_future_timeline, generate_sentiment_analysis, compare_stocks, consult_knowledge_base]
 llm_with_tools = llm.bind_tools(tools)
 
 # --- 3. SYSTEM PROMPT ---
@@ -77,7 +77,7 @@ Your goal is to provide deep, accurate, and data-backed analysis of Indian stock
 6.  **LENGTH**: Provide comprehensive answers. Aim for 300-500 words minimum for stock analysis.
 
 ### TOOLS:
-You have access to visual tools (Charts, Risk Gauge, Timeline, Sentiment).
+You have access to visual tools (Charts, Risk Gauge, Timeline, Sentiment, Stock Comparison, Document Search).
 - **CRITICAL**: When using a tool, you MUST ANALYZE the 'llm_data' returned by the tool.
 - **NEVER** just say "I have displayed the chart". ALWAYS provide detailed analysis of the data.
 - After calling a tool, write a full analysis section explaining what the visualization shows.
@@ -98,6 +98,8 @@ When the user's message contains these keywords, you MUST call the corresponding
 | "future", "outlook", "targets", "timeline" | `generate_future_timeline(ticker)` |
 | "chart", "graph", "visualize", "show me", "plot" | `generate_chart(...)` |
 | "sentiment", "news", "headlines", "market mood" | `generate_sentiment_analysis(ticker)` |
+| "compare", "vs", "versus", "against" | `compare_stocks(ticker1, ticker2)` |
+| "document", "file", "uploaded", "report", "summary" | `consult_knowledge_base(query)` |
 
 **FAILURE TO CALL THE TOOL IS UNACCEPTABLE.**
 The visual tool MUST be called in addition to your detailed text analysis.

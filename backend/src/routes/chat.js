@@ -1,6 +1,5 @@
 import express from "express";
 import axios from "axios";
-import ChatHistory from "../models/ChatHistory.js";
 
 const router = express.Router();
 
@@ -8,33 +7,13 @@ const AI_AGENT_URL = process.env.AI_AGENT_URL || "http://localhost:8001";
 
 // Send message to AI agent and stream response
 router.post("/", async (req, res) => {
-  const { message, stockSymbol, session_id } = req.body;
-  // TODO: Get real userId from auth token
-  const userId = "default_user_v1";
+  const { message, stockSymbol, session_id, mode, profile } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "Message is required" });
   }
 
   try {
-    // 1. Fetch recent history (Last 10 messages)
-    const historyDocs = await ChatHistory.find({ userId })
-      .sort({ timestamp: -1 })
-      .limit(10);
-
-    // Convert to Gemini format: [{role: 'user'|'model', parts: [{text: '...'}]}, ...]
-    const history = historyDocs.reverse().map((doc) => ({
-      role: doc.role,
-      parts: [{ text: doc.content }],
-    }));
-
-    // 2. Save User Message to DB (Async, don't block)
-    const userMsgPromise = ChatHistory.create({
-      userId,
-      role: "user",
-      content: message,
-    });
-
     // Set headers for streaming
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -46,7 +25,9 @@ router.post("/", async (req, res) => {
       {
         message,
         stock_symbol: stockSymbol,
-        history: history, // Pass history to Python
+        mode,
+        profile,
+        // History is managed by the AI agent session store.
         session_id: session_id, // Pass session ID
       },
       {
@@ -84,16 +65,6 @@ router.post("/", async (req, res) => {
     response.data.on("end", async () => {
       res.write("data: [DONE]\n\n");
       res.end();
-
-      // 5. Save AI Response to DB
-      await userMsgPromise; // Ensure user msg is saved first (optional but good)
-      if (aiResponseText) {
-        await ChatHistory.create({
-          userId,
-          role: "model",
-          content: aiResponseText,
-        });
-      }
     });
 
     response.data.on("error", (error) => {
