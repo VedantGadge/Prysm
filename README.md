@@ -2,7 +2,7 @@
 
 A chat-based investment research UI where users can ask questions about stocks and receive AI-powered analysis with interactive charts. Now powered by **LangGraph**, **MongoDB**, and **Real-time Data**.
 
-![Prysm Screenshot](./screenshot.png)
+![Prysm Screenshot](./Diagrams/UI.png)
 
 For the full, code-accurate architecture (endpoints, data model, and diagrams), see [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md).
 
