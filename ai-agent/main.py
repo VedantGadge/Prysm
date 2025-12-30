@@ -8,7 +8,7 @@ from typing import Optional, AsyncGenerator, Dict, Any, List
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 # LangGraph & LangChain Imports
@@ -87,29 +87,66 @@ if GEMINI_API_KEY:
     except:
         pass
 
-async def extract_intent(message: str, history: List[Dict[str, Any]] = []) -> Dict[str, Any]:
-    # Build history context and find last mentioned stock
-    history_summary = ""
-    last_stock = None
-    
-    print(f"[INTENT] History length: {len(history)}")
-    
-    for turn in history[-10:]: # Look deeper: last 10 turns
-        role = turn.get('role', 'user')
-        text = turn.get('parts', [{}])[0].get('text', '')
-        history_summary += f"{role}: {text[:150]}...\n"
-        
-        # Look for stock mentions in both user and model text
-        # Scan for common ticker patterns
-        tickers = re.findall(r'\b[A-Z]{2,6}\b', text.upper())
-        # Filter out common words like "THE", "AND", "FOR", "STOCK", "PRICE", "CHART"
-        COMMON_WORDS = {"THE", "AND", "FOR", "STOCK", "PRICE", "CHART", "RISK", "WHAT", "SHOW", "GIVE", "TELL", "HAVE", "COPY", "WITH", "FROM", "THAT", "THIS", "YOUR", "DEEP", "DIVE", "INTO", "ASSESSMENT", "ANALYSIS", "BULLISH", "BEARISH", "SENTIMENT", "TIMELINE", "FUTURE", "OUTLOOK"}
+# ---- simplified ticker-context helpers (shared constants at module level) ----
+COMMON_WORDS = {
+    "THE", "AND", "FOR", "STOCK", "PRICE", "CHART", "RISK", "WHAT", "SHOW", "GIVE", "TELL", "HAVE", "COPY",
+    "WITH", "FROM", "THAT", "THIS", "YOUR", "DEEP", "DIVE", "INTO", "ASSESSMENT", "ANALYSIS", "BULLISH",
+    "BEARISH", "SENTIMENT", "TIMELINE", "FUTURE", "OUTLOOK",
+}
+
+INVALID_SYMBOLS = {
+    "ALSO", "STOCK", "TICKER", "NONE", "NULL", "IT", "ITS", "THIS", "THAT", "DEEP", "DIVE", "INTO", "THE", "ACTUAL",
+}
+
+STICKY_INTENTS = {"risk", "chart", "future", "sentiment", "analysis"}
+
+
+def _find_last_ticker(history: List[Dict[str, Any]]) -> Optional[str]:
+    """Find the most recent plausible ticker in recent chat turns."""
+    for turn in reversed((history or [])[-10:]):
+        parts = turn.get("parts") or []
+        text = (parts[0].get("text") if parts and isinstance(parts[0], dict) else "") or ""
+        tickers = re.findall(r"\b[A-Z]{2,6}\b", text.upper())
         candidates = [t for t in tickers if t not in COMMON_WORDS]
         if candidates:
-            last_stock = candidates[-1] # Take the most recent one
-            
-    print(f"[INTENT] Last stock found in context: {last_stock}")
-    
+            return candidates[-1]
+    return None
+
+
+def _looks_like_followup(message: str) -> bool:
+    m = (message or "").lower()
+    return (
+        len(m) < 50
+        or any(
+            w in m
+            for w in [
+                "it",
+                "its",
+                "this",
+                "that",
+                "the stock",
+                "details",
+                "more",
+                "deep",
+                "dive",
+                "show",
+                "give",
+                "tell",
+            ]
+        )
+    )
+
+async def extract_intent(message: str, history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    history = history or []
+    history_summary = ""
+    last_stock = _find_last_ticker(history)
+
+    for turn in history[-10:]:
+        role = turn.get("role", "user")
+        parts = turn.get("parts") or []
+        text = (parts[0].get("text") if parts and isinstance(parts[0], dict) else "") or ""
+        history_summary += f"{role}: {text[:150]}...\n"
+
     intent_prompt = f"""You are parsing a user query about stocks. Extract the ACTUAL stock ticker symbol and intent.
 
 User message: "{message}"
@@ -124,54 +161,43 @@ Rules:
 
 Return ONLY valid JSON:
 {{"stock_symbol": "MAIN_TICKER" or null, "second_symbol": "SECOND_TICKER" or null, "intent": "risk/chart/future/sentiment/analysis/comparison/general"}}"""
-    
+
     try:
-        if not client_gemini: return {"stock_symbol": None, "intent": "general"}
+        if not client_gemini:
+            return {
+                "stock_symbol": last_stock if (last_stock and _looks_like_followup(message)) else None,
+                "second_symbol": None,
+                "intent": "general",
+            }
         response = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: client_gemini.models.generate_content(
                 model="gemini-2.5-flash", contents=intent_prompt, config=types.GenerateContentConfig(temperature=0.1)
             )
         )
-        text = response.text.strip().replace("```json", "").replace("```", "")
-        result = json.loads(text)
-        
-        print(f"[INTENT] LLM Raw Result: {result}")
-        
-        # Validate extracted stock symbol - filter out obviously wrong ones
-        extracted_symbol = result.get("stock_symbol")
-        if extracted_symbol:
-            # Filter out common words that are not stocks
-            INVALID_SYMBOLS = {"ALSO", "STOCK", "TICKER", "NONE", "NULL", "IT", "ITS", "THIS", "THAT", "DEEP", "DIVE", "INTO", "THE", "ACTUAL"}
-            if extracted_symbol.upper() in INVALID_SYMBOLS:
-                print(f"[INTENT] Filtered out invalid symbol: {extracted_symbol}")
-                result["stock_symbol"] = None
+        text = (response.text or "").strip().replace("```json", "").replace("```", "")
+        result = json.loads(text) if text else {}
 
-        # STICKY CONTEXT LOGIC - More aggressive
-        # If we have a last_stock from context, use it for ANY analysis-type query
-        if not result.get("stock_symbol") and last_stock:
-            # For ANY intent that's not "general", assume they're continuing the conversation
-            if result.get("intent") in ["risk", "chart", "future", "sentiment", "analysis"]:
-                print(f"[INTENT] Applying sticky context (intent-based): {last_stock}")
-                result["stock_symbol"] = last_stock
-            
-            # Also apply if the message looks like a follow-up
-            elif any(w in message.lower() for w in ["it", "its", "this", "that", "the stock", "details", "more", "deep", "dive", "show", "give", "tell"]):
-                print(f"[INTENT] Applying sticky context (pronoun-based): {last_stock}")
-                result["stock_symbol"] = last_stock
-            
-            # Last resort: if message is short (< 50 chars) and we have context, use it
-            elif len(message) < 50 and last_stock:
-                print(f"[INTENT] Applying sticky context (short query): {last_stock}")
-                result["stock_symbol"] = last_stock
+        intent = (result.get("intent") or "general").strip().lower()
+        sym = (result.get("stock_symbol") or "").strip().upper() or None
+        second = (result.get("second_symbol") or "").strip().upper() or None
 
-        return result
+        if sym in INVALID_SYMBOLS:
+            sym = None
+        if second in INVALID_SYMBOLS:
+            second = None
+
+        # Sticky context: only when the model did not extract a symbol.
+        if not sym and last_stock:
+            if intent in STICKY_INTENTS or _looks_like_followup(message):
+                sym = last_stock
+
+        return {"stock_symbol": sym, "second_symbol": second, "intent": intent}
     except Exception as e:
         print(f"[INTENT] Error: {e}")
-        # Emergency fallback - if we have context, use it
-        if last_stock:
-            return {"stock_symbol": last_stock, "intent": "analysis"}
-        return {"stock_symbol": None, "intent": "general"}
+        if last_stock and _looks_like_followup(message):
+            return {"stock_symbol": last_stock, "second_symbol": None, "intent": "analysis"}
+        return {"stock_symbol": None, "second_symbol": None, "intent": "general"}
 
 
 
@@ -412,7 +438,7 @@ class ChatRequest(BaseModel):
     message: str
     stock_symbol: Optional[str] = None
     session_id: Optional[str] = None
-    history: Optional[List[Dict[str, Any]]] = []
+    history: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     mode: Optional[str] = None  # 'overall' | 'stock'
     profile: Optional[str] = None  # 'strategic' | 'balanced'
 

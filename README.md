@@ -8,43 +8,13 @@ For the full, code-accurate architecture (endpoints, data model, and diagrams), 
 
 ## System Architecture
 
-```mermaid
-graph TD
-    User[User] -->|Chat Message| Frontend[Frontend (React)]
-    Frontend -->|/api/*| Backend[Backend Gateway (Express)]
-    Backend -->|POST /chat (Stream)| Agent[AI Agent (FastAPI)]
-
-    Backend -->|Stock Search/Quote| YFNode[Yahoo Finance (yahoo-finance2)]
-
-    subgraph "AI Agent (LangGraph)"
-        Agent -->|Load/Save History| Mongo[(MongoDB)]
-        Agent -->|Extract Intent| Gemini[Gemini 1.5/2.5]
-
-        Agent -->|Execute Graph| Graph[LangGraph Workflow]
-        Graph -->|Consult| Gemini
-
-        Graph -->|Call Tools| Tools[Tools Layer]
-        Tools -->|Fetch Prices| YFin[Yahoo Finance]
-        Tools -->|Fetch News| RSS[Google/Yahoo News RSS]
-    end
-
-    Agent -->|Stream Chunks + UI Tokens| Backend
-    Backend -->|Stream Chunks + UI Tokens| Frontend
-    Frontend -->|Render Markdown + Charts| User
-```
+![System Architecture](./Diagrams/System%20Architecture.png)
 
 ## LangGraph Workflow
 
-The AI Agent uses a cyclic graph to manage state and tool execution:
+The AI Agent follows a cyclic graph to manage state and tool execution.
 
-```mermaid
-graph TD
-    START --> DefineState
-    DefineState --> ModelNode
-    ModelNode -->|tool_calls| ToolNode
-    ToolNode --> ModelNode
-    ModelNode -->|text| END
-```
+![LangGraph Agent Flow](./Diagrams/LangGraph%20Agent%20Flow.png)
 
 ## Features
 
@@ -87,9 +57,9 @@ prysm/
 
 1. **Session Management**:
 
-    - Frontend checks for `currentSessionId`. If missing, calls `POST /api/sessions`.
-    - Backend proxies to the AI Agent, which creates the MongoDB session.
-    - All chat messages include this `session_id`.
+   - Frontend checks for `currentSessionId`. If missing, calls `POST /api/sessions`.
+   - Backend proxies to the AI Agent, which creates the MongoDB session.
+   - All chat messages include this `session_id`.
 
 2. **Intent Extraction**:
 
@@ -100,24 +70,38 @@ prysm/
 
    - **Context**: If a stock is identified, recent price/financial data is injected into the System Prompt.
    - **Tools**: The agent decides which tools to call (Risk Gauge, Price Chart, Sentiment).
-    - **Streaming**: The agent streams SSE-style chunks through the backend gateway to the frontend.
+   - **Streaming**: The agent streams SSE-style chunks through the backend gateway to the frontend.
+
+![User Query Flow](./Diagrams/User%20query%20flow.png)
 
 4. **Visualization**:
-    - Frontend parses `data: ...` chunks from the stream.
-    - Text is appended incrementally; structured tool UI payloads are rendered as React components.
+   - Frontend parses `data: ...` chunks from the stream.
+   - Text is appended incrementally; structured tool UI payloads are rendered as React components.
 
 ## Quick Start
 
 ### 1. Prerequisites
 
-- MongoDB Running (Local or Atlas)
-- Google Gemini API Key
-- Python 3.11+
-- Node.js 18+
+- **MongoDB** Running locally (default port `27017`) or Atlas URI.
+- **Python 3.11+** (Critical for LangGraph compatibility).
+- **Node.js 18+**.
+- **Google Gemini API Key**.
 
 ### 2. Setup
 
-**Run everything (recommended)**
+**Quick Start (All-in-One)**
+
+Runs Frontend, Backend, and AI Agent concurrently.
+
+```bash
+# Install dependencies for all services
+npm run install:all
+
+# Start the full stack
+npm run dev
+```
+
+**Manual Setup (Service by Service)**
 
 ```bash
 npm install
@@ -160,6 +144,12 @@ GEMINI_API_KEY=your_key
 MONGO_URI=mongodb://localhost:27017
 ```
 
+## RAG Pipeline (PDF Analysis)
+
+Prysm supports persistent RAG (Retrieval-Augmented Generation) on uploaded documents.
+
+![RAG Architecture](./Diagrams/RAG%20architecture.png)
+
 ## AI Agent Pipeline
 
 The core intelligence of Prysm follows a structured **LangGraph** pipeline:
@@ -200,7 +190,28 @@ The agent produces "Visual Tokens" which render as high-fidelity UI components:
 | **`generate_risk_gauge`**         | "risk", "safe", "volatility"       | Creating a speedometer-style Gauge visualizing Beta, volatility, and debt levels.                     |
 | **`generate_sentiment_analysis`** | "news", "sentiment", "headlines"   | Aggregates news from Yahoo Finance/Google News and computes a Bullish/Bearish score (0-100).          |
 | **`generate_future_timeline`**    | "future", "events", "calendar"     | Displays a timeline of upcoming events (Earnings, Dividends) fetched from the stock's calendar.       |
+| **`compare_stocks`**              | "compare", "vs", "versus"          | Side-by-side comparison of two stocks on key financial metrics (P/E, Margins, Growth).                |
+| **`consult_knowledge_base`**      | "document", "report", "summary"    | RAG Retrieval tool that searches uploaded PDFs for specific answers.                                  |
 
-## License
+## Scalability & Optimization
 
-MIT
+Prysm is designed to handle long-running investment discussions without bloating functionality or storage.
+
+### 📉 Smart Session Compaction
+
+To ensure **fast retrieval** and **low token usage**, chat history is automatically optimized:
+
+- **Daily Snapshots**: At the start of a new day, previous messages are summarized and moved to a `snapshots` array in MongoDB.
+- **Active Context Window**: Only the current day's detailed conversation + previous summaries are injected into the LLM context.
+- **Result**: Users keep a "infinite" history feel, but the system only loads ~24 hours of raw tokens, ensuring speed and cost-efficiency.
+
+### 🧠 AI Logic & Metrics
+
+- **Lightning Intent**: `Gemini 2.5 Flash` (Temp 0.1) classifies intent + target stock using the **last 10 turns** of history to resolve pronouns ("it", "this").
+- **Precision Context**: To save tokens while maintaining flow, the `Agent` injects the **last 5 full messages** + the active stock's real-time financial report into the System Prompt.
+
+### ⚡ Efficient Data Handling
+
+- **Lazy Loading**: Stock data is fetched only when specific tools are triggered.
+- **Streaming Architecture**: Responses are streamed byte-by-byte to reduce perceived latency.
+

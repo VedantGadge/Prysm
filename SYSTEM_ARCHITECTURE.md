@@ -12,22 +12,7 @@ Prysm is a 3-service local dev stack:
 
 ### Topology
 
-```mermaid
-graph LR
-  U[User Browser] -->|HTTP| FE[Frontend: Vite + React]
-  FE -->|/api/*| BE[Backend: Express API Gateway]
-  BE -->|/chat /sessions| AG[AI-Agent: FastAPI + LangGraph]
-
-  BE -->|yahoo-finance2| YF[(Yahoo Finance APIs)]
-
-  AG -->|Motor| MDB[(MongoDB: prysm.agent_sessions)]
-  AG -->|Chroma persistent| CH[(ChromaDB: ai-agent/chroma_db)]
-  AG -->|LLM calls| LLM[(Gemini API)]
-  AG -->|yfinance + scraping fallback| YF2[(Yahoo Finance / Google Finance)]
-  AG -->|RSS/news feeds| NEWS[(RSS Sources)]
-
-  FE -->|direct PDF upload (current)| AG
-```
+![System Architecture](./Diagrams/System%20Architecture.png)
 
 ### Default local ports
 
@@ -42,6 +27,7 @@ graph LR
 ### 2.1 Frontend (React)
 
 **Primary responsibilities**
+
 - Collect user input: message text, mode/profile selectors, selected stock, attachments.
 - Dispatch chat requests to the backend.
 - Parse streamed SSE-style chunks and render them incrementally.
@@ -49,6 +35,7 @@ graph LR
 - Manage sessions list and current session state.
 
 **Key UI domains**
+
 - Chat UI: input box, message list, welcome screen.
 - Stock selection UI: chooses `selectedStock` in Redux.
 - Chart renderer components: take tool output payloads and display.
@@ -56,6 +43,7 @@ graph LR
 ### 2.2 Backend (Node/Express) — API Gateway
 
 **Primary responsibilities**
+
 - Provide a stable `/api/*` surface for the frontend.
 - Proxy streaming chat from AI Agent `/chat` to frontend `/api/chat`.
 - Proxy sessions from AI Agent `/sessions` to frontend `/api/sessions`.
@@ -63,12 +51,14 @@ graph LR
 - Connect to MongoDB via Mongoose (configured by `MONGO_URI`).
 
 **Note on storage**
+
 - The AI Agent is the source of truth for chat sessions (`agent_sessions`).
 - The backend contains a `ChatHistory` model but current app behavior relies on the agent’s session storage for chat history.
 
 ### 2.3 AI Agent (FastAPI + LangGraph)
 
 **Primary responsibilities**
+
 - Handle `/chat` streaming responses.
 - Use LangGraph to run an LLM agent capable of tool calling.
 - Persist sessions and metadata to MongoDB (`prysm.agent_sessions`).
@@ -76,6 +66,7 @@ graph LR
 - Handle PDF ingestion (`/upload_doc`) and RAG query (`consult_knowledge_base` tool).
 
 **Agent capabilities (tools)**
+
 - Stock chart generation
 - Risk gauge generation
 - Future timeline generation
@@ -95,22 +86,7 @@ The system uses an SSE-like format across services:
 - Backend proxies the stream to the frontend.
 - Frontend parses `data:` lines and appends content incrementally.
 
-```mermaid
-sequenceDiagram
-  participant FE as Frontend (Browser)
-  participant BE as Backend (Express)
-  participant AG as AI-Agent (FastAPI)
-  participant DB as MongoDB
-
-  FE->>BE: POST /api/chat { message, session_id, mode, profile, stockSymbol }
-  BE->>AG: POST /chat { message, session_id, mode, profile, stock_symbol }
-  AG->>DB: read session + archive previous days (snapshots)
-  AG-->>BE: stream: data:{content: "..."}
-  BE-->>FE: stream: data:{content: "..."}
-  AG->>DB: update agent_sessions (messages + preview + timestamps)
-  AG-->>BE: data:[DONE]
-  BE-->>FE: data:[DONE]
-```
+![User Query Flow](./Diagrams/User%20query%20flow.png)
 
 ### 3.2 Stock selection as context (mode-aware)
 
@@ -118,8 +94,8 @@ Frontend sends the selected stock symbol along with each chat request.
 
 The AI Agent treats this symbol in two different ways:
 
-- **Stock mode**: the selected symbol is *enforced* as the active analysis ticker.
-- **Overall mode**: the selected symbol is used as *contextual default* only when the user’s question is stock-specific but doesn’t name a ticker (e.g., “Is it overvalued?” right after selecting HDFCBANK). If the user is asking general/portfolio questions, the agent should not force the answer to be about the selected symbol.
+- **Stock mode**: the selected symbol is _enforced_ as the active analysis ticker.
+- **Overall mode**: the selected symbol is used as _contextual default_ only when the user’s question is stock-specific but doesn’t name a ticker (e.g., “Is it overvalued?” right after selecting HDFCBANK). If the user is asking general/portfolio questions, the agent should not force the answer to be about the selected symbol.
 
 This logic is implemented in the AI agent’s system prompt assembly.
 
@@ -165,7 +141,21 @@ This is intentional from a topology perspective: the backend provides “traditi
 - During chat, when the user asks about uploaded docs, the agent calls `consult_knowledge_base` to retrieve relevant chunks and ground the answer.
 
 **Current integration detail**
+
 - The frontend currently uploads PDFs directly to the AI Agent’s `/upload_doc` endpoint.
+
+### 3.8 AI Logic & Metrics
+
+To balance performance with "infinite" context feel, the agent uses specific sliding windows:
+
+- **Intent Detection Window (10 turns)**:
+
+  - The `extract_intent` function analyzes the last **10 messages** to resolve sticky context (e.g., "how is _its_ risk?").
+  - This ensures pronouns work even if the stock was mentioned 8 turns ago.
+
+- **Active Context Window (5 turns)**:
+  - To minimize input token costs and latency, the actual LLM prompt only receives the **last 5 full messages**.
+  - Older history is compressed into "Daily Snapshots" (see Start of Day logic).
 
 ## 4) API surface
 
